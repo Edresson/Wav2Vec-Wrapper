@@ -1,0 +1,100 @@
+{
+    "run_name": "Wav2Vec-fine-tuning-example",
+    "run_description": "Fine tuning example",
+
+    // AUDIO PARAMETERS
+     "augmentation":{
+        "gain_p": 0, // 0 disable. Multiply the audio by a random amplitude factor to reduce or increase the volume. This technique can help a model become somewhat invariant to the overall gain of the input audio.
+        "additive_noise":{
+            "use": true,
+            "num_noise": 1,
+            "musan_path": "../datasets/musan/",
+            // db levels
+            "noise":[0,15],
+            "speech":[13,20],
+            "music":[5,15]
+        }
+
+    },
+    // VOCABULARY PARAMETERS
+    "vocab":{
+        "vocab_path": "example/vocab_example.json", // generic vocab for Portuguese
+        "blank": "<pad>", // blank token for padding
+        "silence": "|", // token between words
+        "unk": "<unk>" // unk token
+    },
+
+    // AUDIO
+    "sampling_rate": 16000,
+
+    // TRAINING
+    "batch_size": 16,       // Batch size for training.
+    "mixed_precision": true,     // level of optimization with NVIDIA's apex feature for automatic mixed FP16/FP32 precision (AMP), NOTE: currently only O1 is supported, and use "O1" to activate.
+    "early_stop_epochs": 0, // If 0 disabled else Number of epochs for stop training with validation loss dont decrease 
+
+    // OPTIMIZER
+    "epochs": 1000,                // total number of epochs to train.
+    "lr": 3e-4,                  // Initial learning rate.
+
+    "lr_scheduler": "ExponentialLR",   // one of the schedulers from https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+    "lr_scheduler_params": {
+       "gamma": 0.999,
+        "last_epoch": -1
+    },
+
+    // LOGGING
+    "print_step": 1, //  Number of steps to log in console.
+    "plot_step": 1,    // Number of steps to plot.
+
+    // DATA LOADING
+    "num_loader_workers": 8,        // number of training data loader processes. Don't set it too big. 4-8 are goo
+    
+    // MODEL
+    "freeze_feature_extractor": true, // Whether to freeze the feature extractor layers of the model.
+    "attention_dropout": 0.05, // The dropout ratio for the attention probabilities.
+    "activation_dropout": 0.1, // The dropout ratio for activations inside the fully connected layer.
+    "hidden_dropout": 0.05, // The dropout probabilitiy for all fully connected layers in the embeddings, encoder, and pooler.
+    "feat_proj_dropout": 0.05, // The dropout probabilitiy for all 1D convolutional layers in feature extractor.
+    "mask_time_prob": 0.05, //  Propability of each feature vector along the time axis to be chosen as the start of the vector span to be masked.
+    "layerdrop": 0.05,  // The LayerDrop probability.
+    "gradient_checkpointing": true,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
+
+    // PATHS
+    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/example-pt/",
+
+    // DATASETS
+    "datasets":{
+        "train":
+            [
+               // this dicts is pass directly for the load dataset see the documentation: https://huggingface.co/docs/datasets/package_reference/loading_methods.html#datasets.load_dataset 
+            {
+                "path": "common_voice",
+                "name": "pt",
+                "split": "train[:30]",
+                "text_column": "sentence", // column that contain the texts one for dataset
+                "path_column": "path" // columns that contain the audio paths one for dataset
+            }
+            //{
+            //    "name": "csv",
+            //    "path": "",
+            //    "data_files": ["metadata.csv"], // csv files
+            //    "text_column": "sentence",
+            //    "audio_column": "path"
+            //}
+            ]
+        ,
+        "devel":
+            [ 
+                {
+                    "path": "common_voice",
+                    "name": "pt",
+                    "split": "test[:30]",
+                    "text_column": "sentence", // column that contain the texts one for dataset
+                    "path_column": "path" // columns that contain the audio paths one for dataset
+                }
+            ]
+        
+    
+}
+}
+

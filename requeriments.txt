@@ -1,0 +1,10 @@
+torch>=1.8.1
+torchaudio>=0.8.1
+librosa
+transformers
+datasets
+jiwer
+packaging
+PyYAML
+tensorboard
+tensorboardX
