@@ -12,16 +12,11 @@ import torchaudio
 import librosa
 import numpy as np
 
-
+from shutil import copyfile
 from utils.dataset import Dataset, DataColletor
 from utils.generic_utils import load_config, load_vocab
 from utils.generic_utils import save_best_checkpoint, calculate_wer
 from utils.tensorboard import TensorboardWriter
-
-from transformers import Wav2Vec2CTCTokenizer
-from transformers import Wav2Vec2FeatureExtractor
-from transformers import Wav2Vec2Processor
-from datasets import ClassLabel
 
 import transformers
 from transformers import Wav2Vec2ForCTC
@@ -48,14 +43,18 @@ def evaluation(model, processor, devel_dataset, epoch, global_step, config, tens
                 labels = labels.cuda(non_blocking=True)
             outputs = model(input_values, attention_mask=attention_mask, labels=labels)
             loss = outputs.loss
-            # compute metrics    
-            tot_wer += calculate_wer(outputs.logits.cpu().detach().numpy(), labels.cpu().detach().numpy(), processor)
+            # compute metrics 
+            pred_ids = np.argmax(outputs.logits.cpu().detach().numpy(), axis=-1)
+            tot_wer += calculate_wer(pred_ids, labels.cpu().detach().numpy(), processor)
             tot_loss += loss.item()
             steps += 1
 
     # calculate avg of metrics
     avg_loss = tot_loss/steps
     avg_wer = tot_wer/steps
+
+    # tensorboard log
+    tensorboard.log_evaluation(avg_loss, avg_wer, global_step)
 
     print("\n\n --> EVAL PERFORMANCE\n")
     print("     | > : CTC Loss ({:.5f})\n".format(avg_loss))
@@ -138,6 +137,9 @@ if __name__ == '__main__':
     # save vocab
     with open(os.path.join(OUTPUT_DIR, 'vocab.json'), "w", encoding="utf-8") as vocab_file:
         json.dump(vocab, vocab_file)
+
+    # save config train
+    copyfile(args.config_path, os.path.join(OUTPUT_DIR, 'config_train.json'))
 
     # save the feature_extractor and the tokenizer
     processor.save_pretrained(OUTPUT_DIR)

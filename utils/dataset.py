@@ -19,6 +19,23 @@ def parse_dataset_dict(data_dict):
     del data_dict['path_column']
     return text_column, audio_path_column
 
+def remove_extra_columns(dataset, text_column, audio_path_column):
+    remove_column = dataset.column_names
+    remove_column.remove(text_column)
+    remove_column.remove(audio_path_column)
+    return dataset.remove_columns(remove_column)
+
+def vocab_to_string(vocab, blank, silence, unk, space=' '):
+    vocab_list = list(vocab.keys())
+    # remove special tokens
+    vocab_list.remove(blank)
+    vocab_list.remove(silence)
+    vocab_list.remove(unk)
+    # append space token
+    vocab_list.append(space)
+    # convert to string
+    return ''.join(vocab_list)
+
 
 class Dataset(object):
     def __init__(self, config, vocab, text_column='text', audio_path_column='audio_path'):
@@ -54,10 +71,7 @@ class Dataset(object):
 
     def remove_extra_and_rename_columns(self, dataset, text_column, audio_path_column):
         # remove unused columns
-        remove_column = dataset.column_names
-        remove_column.remove(text_column)
-        remove_column.remove(audio_path_column)
-        dataset = dataset.remove_columns(remove_column)
+        dataset = remove_extra_columns(dataset, text_columnm, audio_path_column)
 
         # rename columns 
         dataset = dataset.rename_column(text_column, self.text_column)
@@ -80,15 +94,7 @@ class Dataset(object):
         return own_dataset    
         
     def normalise_texts(self):
-        vocab_list = list(self.vocab.keys())
-        # remove special tokens
-        vocab_list.remove(self.config.vocab['blank'])
-        vocab_list.remove(self.config.vocab['silence'])
-        vocab_list.remove(self.config.vocab['unk'])
-        # append space token
-        vocab_list.append(' ')
-        # convert to string
-        vocab_string = ''.join(vocab_list)
+        vocab_string = vocab_to_string(self.vocab, self.config.vocab['blank'], self.config.vocab['silence'], self.config.vocab['unk'])
 
         def remove_invalid_characters(batch):
             text = batch[self.text_column].lower()
@@ -137,18 +143,6 @@ class Dataset(object):
         self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=True)
         self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=True)
 
-
-if __name__ == "__main__":
-    from generic_utils import load_config, load_vocab
-    config_path = 'example/config_example.json'
-
-    config = load_config(config_path)
-    vocab = load_vocab(config.vocab['vocab_path'])
-    dataset = Dataset(config, vocab)
-
-
-
-
 @dataclass
 class DataColletor:
     # Adpated from https://huggingface.co/blog/fine-tune-xlsr-wav2vec2
@@ -178,6 +172,7 @@ class DataColletor:
 
     processor: Wav2Vec2Processor
     padding: Union[bool, str] = True
+    test: Union[bool, str] = False
     max_length: Optional[int] = None
     max_length_labels: Optional[int] = None
     pad_to_multiple_of: Optional[int] = None
@@ -188,9 +183,13 @@ class DataColletor:
         # different padding methods
         input_features = []
         label_features = []
+        audio_paths = []
         for feature in features:
             input_features.append({"input_values": feature["input_values"]})
             label_features.append({"input_ids": feature["labels"]})
+
+            if self.test:
+                audio_paths.append(feature['audio_path'])
 
         batch = self.processor.pad(
             input_features,
@@ -212,5 +211,14 @@ class DataColletor:
         labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
 
         batch["labels"] = labels
-
+        if self.test:
+            batch["audio_path"] = audio_paths
         return batch
+
+'''if __name__ == "__main__":
+    from generic_utils import load_config, load_vocab
+    config_path = 'example/config_example.json'
+
+    config = load_config(config_path)
+    vocab = load_vocab(config.vocab['vocab_path'])
+    dataset = Dataset(config, vocab)'''

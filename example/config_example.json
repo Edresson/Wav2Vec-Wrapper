@@ -92,9 +92,31 @@
                     "text_column": "sentence", // column that contain the texts one for dataset
                     "path_column": "path" // columns that contain the audio paths one for dataset
                 }
-            ]
         
+            ] 
+            ,
+        "test":
+                {
+                    "path": "common_voice",
+                    "name": "pt",
+                    "split": "test",
+                    "text_column": "sentence", // column that contain the texts one for dataset
+                    "path_column": "path" // columns that contain the audio paths one for dataset
+                }       
     
-}
+    },
+    // used only for test 
+    "KenLM":{
+        "kenlm_model_path": "/mnt/edresson/kenLM/binaries/subtitle/4-gram/lm.binary", // Path for KenLM model
+        "lexicon_path": "example/lexicon.lst", // file with all words for limit the decoder search
+        "beam": 2048, 
+        "nbest": 1,
+        "beam_threshold": 25, 
+        "lm_weight": 1, 
+        "word_score": -1,
+        "sil_weight": 0
+    }
+
+
 }
 

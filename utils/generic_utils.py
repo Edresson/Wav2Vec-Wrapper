@@ -9,8 +9,7 @@ from datasets import load_metric
 
 wer_metric = load_metric("wer")
 
-def calculate_wer(pred_logits, labels,  processor, debug=False):
-    pred_ids = np.argmax(pred_logits, axis=-1)
+def calculate_wer(pred_ids, labels,  processor, debug=False):
     labels[labels == -100] = processor.tokenizer.pad_token_id
 
     pred_string = processor.batch_decode(pred_ids)
