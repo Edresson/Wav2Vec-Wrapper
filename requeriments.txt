@@ -8,3 +8,5 @@ packaging
 PyYAML
 tensorboard
 tensorboardX
+torch-audiomentations
+audiomentations

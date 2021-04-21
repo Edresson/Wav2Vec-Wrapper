@@ -2,20 +2,38 @@
     "run_name": "Wav2Vec-fine-tuning-example",
     "run_description": "Fine tuning example",
 
-    // AUDIO PARAMETERS
-     "augmentation":{
-        "gain_p": 0, // 0 disable. Multiply the audio by a random amplitude factor to reduce or increase the volume. This technique can help a model become somewhat invariant to the overall gain of the input audio.
-        "additive_noise":{
-            "use": true,
-            "num_noise": 1,
-            "musan_path": "../datasets/musan/",
-            // db levels
-            "noise":[0,15],
-            "speech":[13,20],
-            "music":[5,15]
-        }
+    // AUDIO PARAMS
+    "sampling_rate": 16000,
 
+    // DATA AUGMENTATION 
+    // ToDo: Implement Time mask and 
+    "gpu_audio_augmentation":{
+        "gain":{
+            "mode":"per_example",
+            "min_gain_in_db": -10.0,
+            "max_gain_in_db": 5.0,
+            "p": 0.5 // propability of apply this method, 0 is disable
+        },
+        // additive noise and room impulse response (RIR) simulation similar to: https://arxiv.org/pdf/2009.14153.pdf
+        "additive":{
+            "background_paths":"../../datasets/musan/", // download: https://www.openslr.org/17/
+            "mode": "per_batch", // per_batch because load one wav file is slow, so we can use the same wav file but with differents min/max_snr_in_db
+            "min_snr_in_db": 5.0,
+            "max_snr_in_db": 20.0,
+            "sample_rate": 16000,
+            "p": 0.5
+        },
+        // rir filter proposed by: https://ieeexplore.ieee.org/document/7953152
+        "rir":{
+            "ir_paths": "../../datasets/RIRS_NOISES/simulated_rirs/", // download: https://www.openslr.org/28/
+            "mode": "per_batch",
+            "convolve_mode": "full",
+            "sample_rate": 16000,
+            "p": 0.5
+        }
+        
     },
+
     // VOCABULARY PARAMETERS
     "vocab":{
         "vocab_path": "example/vocab_example.json", // generic vocab for Portuguese
@@ -23,9 +41,6 @@
         "silence": "|", // token between words
         "unk": "<unk>" // unk token
     },
-
-    // AUDIO
-    "sampling_rate": 16000,
 
     // TRAINING
     "batch_size": 16,       // Batch size for training.
@@ -43,8 +58,8 @@
     },
 
     // LOGGING
-    "print_step": 1, //  Number of steps to log in console.
-    "plot_step": 1,    // Number of steps to plot.
+    "print_step": 50, //  Number of steps to log in console.
+    "plot_step": 100,    // Number of steps to plot.
 
     // DATA LOADING
     "num_loader_workers": 8,        // number of training data loader processes. Don't set it too big. 4-8 are goo
@@ -60,7 +75,7 @@
     "gradient_checkpointing": true,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
 
     // PATHS
-    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/example-pt/",
+    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice/",
 
     // DATASETS
     "datasets":{
@@ -70,7 +85,7 @@
             {
                 "path": "common_voice",
                 "name": "pt",
-                "split": "train[:30]",
+                "split": "train+validation",
                 "text_column": "sentence", // column that contain the texts one for dataset
                 "path_column": "path" // columns that contain the audio paths one for dataset
             }
@@ -88,7 +103,7 @@
                 {
                     "path": "common_voice",
                     "name": "pt",
-                    "split": "test[:30]",
+                    "split": "test",
                     "text_column": "sentence", // column that contain the texts one for dataset
                     "path_column": "path" // columns that contain the audio paths one for dataset
                 }
@@ -107,7 +122,7 @@
     },
     // used only for test 
     "KenLM":{
-        "kenlm_model_path": "/mnt/edresson/kenLM/binaries/subtitle/4-gram/lm.binary", // Path for KenLM model
+        "kenlm_model_path": "../../kenLM/binaries/subtitle/4-gram/lm.binary", // Path for KenLM model
         "lexicon_path": "example/lexicon.lst", // file with all words for limit the decoder search
         "beam": 2048, 
         "nbest": 1,

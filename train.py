@@ -64,10 +64,10 @@ def evaluation(model, processor, devel_dataset, epoch, global_step, config, tens
 
 
 
-def train(model, optimizer, lr_scheduler, scaler, train_dataset, epoch, global_step, config, tensorboard, USE_CUDA):
+def train(model, optimizer, lr_scheduler, scaler, train_dataset, gpu_audio_augmentation, epoch, global_step, config, tensorboard, USE_CUDA):
     model.train()
     batch_n_iter = int(len(train_dataset.dataset) / config.batch_size)
-    step = 1
+    step = 0
     for batch in train_dataset:
         optimizer.zero_grad()
         input_values, attention_mask, labels = batch['input_values'], batch['attention_mask'], batch['labels']
@@ -77,6 +77,10 @@ def train(model, optimizer, lr_scheduler, scaler, train_dataset, epoch, global_s
             labels = labels.cuda(non_blocking=True)
 
         with torch.cuda.amp.autocast(enabled=config.mixed_precision):
+            # apply noise data augmentation
+            if gpu_audio_augmentation is not None:
+                input_values = gpu_audio_augmentation(input_values.unsqueeze(1), sample_rate=config.sampling_rate).squeeze(1)
+
             loss = model(input_values, attention_mask=attention_mask, labels=labels).loss
 
         # check nan loss
@@ -231,6 +235,19 @@ if __name__ == '__main__':
     else:
         print("> CUDA is not available")
     
+    # GPU Audio Data augmentation
+    if 'gpu_audio_augmentation' in config.keys(): 
+        from torch_audiomentations import Compose, Gain, AddBackgroundNoise, ApplyImpulseResponse
+        # ToDo: Implement Time mask and  
+        gpu_audio_augmentation = Compose(
+            transforms=[
+                    AddBackgroundNoise(**config.gpu_audio_augmentation['additive']),
+                    ApplyImpulseResponse(**config.gpu_audio_augmentation['rir']),
+                    Gain(**config.gpu_audio_augmentation['gain']),
+            ]
+        )
+    else:
+        gpu_audio_augmentation = None
     best_loss = float('inf')
     early_epochs = 0
 
@@ -238,12 +255,12 @@ if __name__ == '__main__':
     start_epoch = restore_epoch if restore_epoch else 0 
 
     for epoch in range(start_epoch, max_epoch):
-        print("\n > EPOCH: {}/{}".format(epoch, max_epoch), flush=True)
-        global_step = train(model, optimizer, lr_scheduler, scaler, train_dataset, epoch, global_step, config, tensorboard, USE_CUDA)
-        print("\n > EPOCH END -- GLOBAL_STEP:", global_step)
+        # evaluation when  epoch start, if continue training it's useful for save  really the best checkpoint
         devel_loss = evaluation(model, processor, devel_dataset, epoch, global_step, config, tensorboard, USE_CUDA)
         best_loss, early_epochs = save_best_checkpoint(OUTPUT_DIR, model, optimizer, lr_scheduler, scaler, global_step, epoch, devel_loss, best_loss, early_epochs)
-
+        print("\n > EPOCH: {}/{}".format(epoch, max_epoch), flush=True)
+        global_step = train(model, optimizer, lr_scheduler, scaler, train_dataset, gpu_audio_augmentation, epoch, global_step, config, tensorboard, USE_CUDA)
+        print("\n > EPOCH END -- GLOBAL_STEP:", global_step)
 
         if config.early_stop_epochs:
             if early_epochs is not None:

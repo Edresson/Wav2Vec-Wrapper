@@ -28,9 +28,13 @@ def remove_extra_columns(dataset, text_column, audio_path_column):
 def vocab_to_string(vocab, blank, silence, unk, space=' '):
     vocab_list = list(vocab.keys())
     # remove special tokens
-    vocab_list.remove(blank)
+    vocab_list = [x if len(x) == 1 else '' for x in vocab_list]
+    vocab_list.sort()
+    # remove special with len 1
     vocab_list.remove(silence)
-    vocab_list.remove(unk)
+    # vocab_list.remove(blank)
+    # vocab_list.remove(unk)
+
     # append space token
     vocab_list.append(space)
     # convert to string
@@ -71,7 +75,7 @@ class Dataset(object):
 
     def remove_extra_and_rename_columns(self, dataset, text_column, audio_path_column):
         # remove unused columns
-        dataset = remove_extra_columns(dataset, text_columnm, audio_path_column)
+        dataset = remove_extra_columns(dataset, text_column, audio_path_column)
 
         # rename columns 
         dataset = dataset.rename_column(text_column, self.text_column)
