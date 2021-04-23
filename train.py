@@ -89,17 +89,18 @@ def train(model, optimizer, lr_scheduler, scaler, train_dataset, gpu_audio_augme
 
         if config.mixed_precision:
             scaler.scale(loss).backward()
-            # scaler.unscale_(optimizer)
+            scaler.unscale_(optimizer)
+            # update learning rate
+            if lr_scheduler is not None:
+                lr_scheduler.step()
             scaler.step(optimizer)
             scaler.update()
         else:
             # back propag
             loss.backward()
             optimizer.step()
-
-        # update learning rate
-        if lr_scheduler is not None:
-            lr_scheduler.step()
+            if lr_scheduler is not None:
+                lr_scheduler.step()
 
         step += 1
         global_step += 1
@@ -169,6 +170,15 @@ if __name__ == '__main__':
     if config['freeze_feature_extractor']:
         model.freeze_feature_extractor()
 
+    # Use CUDA
+    USE_CUDA = torch.cuda.is_available()
+    if USE_CUDA:
+        print("> Using CUDA")
+        model = model.cuda()
+    else:
+        print("> CUDA is not available")
+        model = model.cpu()
+
     # export model with transformers for save the config    
     model.save_pretrained(OUTPUT_DIR)
 
@@ -196,9 +206,6 @@ if __name__ == '__main__':
     if "lr_scheduler" in config:
         lr_scheduler = getattr(torch.optim.lr_scheduler, config.lr_scheduler)
         lr_scheduler = lr_scheduler(optimizer, **config.lr_scheduler_params)
-
-    # Use CUDA
-    USE_CUDA = torch.cuda.is_available()
     
     # restore optimizer
     optimizer_checkpoint_path = os.path.join(args.checkpoint_path, 'optimizer.pt')
@@ -228,12 +235,6 @@ if __name__ == '__main__':
             print("> Optimizer Loaded")
         except:
             print("> Optimizer exist but is not possible load !")
-
-    if USE_CUDA:
-        print("> Using CUDA")
-        model = model.cuda()
-    else:
-        print("> CUDA is not available")
     
     # GPU Audio Data augmentation
     if 'gpu_audio_augmentation' in config.keys(): 

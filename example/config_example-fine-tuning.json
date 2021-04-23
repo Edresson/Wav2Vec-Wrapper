@@ -12,7 +12,7 @@
             "mode":"per_example",
             "min_gain_in_db": -18.0,
             "max_gain_in_db": 6,
-            "p": 0.5 // propability of apply this method, 0 is disable
+            "p": 0.7 // propability of apply this method, 0 is disable
         },
         // additive noise and room impulse response (RIR) simulation similar to: https://arxiv.org/pdf/2009.14153.pdf
         "additive":{
@@ -21,7 +21,7 @@
             "min_snr_in_db": 5.0,
             "max_snr_in_db": 20.0,
             "sample_rate": 16000,
-            "p": 0.5
+            "p": 0.7
         },
         // rir filter proposed by: https://ieeexplore.ieee.org/document/7953152
         "rir":{
@@ -29,7 +29,7 @@
             "mode": "per_batch",
             "convolve_mode": "full",
             "sample_rate": 16000,
-            "p": 0.5
+            "p": 0.7
         }
         
     },
@@ -44,12 +44,12 @@
 
     // TRAINING
     "batch_size": 16,       // Batch size for training.
-    "mixed_precision": true,     // level of optimization with NVIDIA's apex feature for automatic mixed FP16/FP32 precision (AMP), NOTE: currently only O1 is supported, and use "O1" to activate.
+    "mixed_precision": true,   // level of optimization with NVIDIA's apex feature for automatic mixed FP16/FP32 precision (AMP)
     "early_stop_epochs": 0, // If 0 disabled else Number of epochs for stop training with validation loss dont decrease 
 
     // OPTIMIZER
     "epochs": 1000,                // total number of epochs to train.
-    "lr": 0.0003,                  // Initial learning rate.
+    "lr": 0.00003,                  // Initial learning rate.
 
     "lr_scheduler": "ExponentialLR",   // one of the schedulers from https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
     "lr_scheduler_params": {
@@ -65,17 +65,17 @@
     "num_loader_workers": 8,        // number of training data loader processes. Don't set it too big. 4-8 are goo
     
     // MODEL
-    "freeze_feature_extractor": true, // Whether to freeze the feature extractor layers of the model.
-    "attention_dropout": 0.05, // The dropout ratio for the attention probabilities.
+    "freeze_feature_extractor": false, // Whether to freeze the feature extractor layers of the model.
+    "attention_dropout": 0.1, // The dropout ratio for the attention probabilities.
     "activation_dropout": 0.1, // The dropout ratio for activations inside the fully connected layer.
-    "hidden_dropout": 0.05, // The dropout probabilitiy for all fully connected layers in the embeddings, encoder, and pooler.
-    "feat_proj_dropout": 0.05, // The dropout probabilitiy for all 1D convolutional layers in feature extractor.
-    "mask_time_prob": 0.05, //  Propability of each feature vector along the time axis to be chosen as the start of the vector span to be masked.
-    "layerdrop": 0.05,  // The LayerDrop probability.
-    "gradient_checkpointing": true,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
+    "hidden_dropout": 0.1, // The dropout probabilitiy for all fully connected layers in the embeddings, encoder, and pooler.
+    "feat_proj_dropout": 0.1, // The dropout probabilitiy for all 1D convolutional layers in feature extractor.
+    "mask_time_prob": 0.1, //  Propability of each feature vector along the time axis to be chosen as the start of the vector span to be masked.
+    "layerdrop": 0.1,  // The LayerDrop probability.
+    "gradient_checkpointing": false,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
 
     // PATHS
-    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice/",
+    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice-FT-old/",
 
     // DATASETS
     "datasets":{

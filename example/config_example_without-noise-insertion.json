@@ -12,16 +12,16 @@
             "mode":"per_example",
             "min_gain_in_db": -18.0,
             "max_gain_in_db": 6,
-            "p": 0.5 // propability of apply this method, 0 is disable
+            "p": 0 // propability of apply this method, 0 is disable
         },
         // additive noise and room impulse response (RIR) simulation similar to: https://arxiv.org/pdf/2009.14153.pdf
         "additive":{
             "background_paths":"../../datasets/musan/", // download: https://www.openslr.org/17/
             "mode": "per_batch", // per_batch because load one wav file is slow, so we can use the same wav file but with differents min/max_snr_in_db
             "min_snr_in_db": 5.0,
-            "max_snr_in_db": 20.0,
+            "max_snr_in_db": 15.0,
             "sample_rate": 16000,
-            "p": 0.5
+            "p": 0
         },
         // rir filter proposed by: https://ieeexplore.ieee.org/document/7953152
         "rir":{
@@ -29,7 +29,7 @@
             "mode": "per_batch",
             "convolve_mode": "full",
             "sample_rate": 16000,
-            "p": 0.5
+            "p": 0
         }
         
     },
@@ -49,7 +49,7 @@
 
     // OPTIMIZER
     "epochs": 1000,                // total number of epochs to train.
-    "lr": 0.0003,                  // Initial learning rate.
+    "lr": 3e-4,                  // Initial learning rate.
 
     "lr_scheduler": "ExponentialLR",   // one of the schedulers from https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
     "lr_scheduler_params": {
@@ -75,7 +75,7 @@
     "gradient_checkpointing": true,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
 
     // PATHS
-    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice/",
+    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice-without-noise-DA-and-without-gain/",
 
     // DATASETS
     "datasets":{
