@@ -236,7 +236,7 @@ if __name__ == '__main__':
                         help="json file with configurations")
     parser.add_argument('--checkpoint_path_or_name', type=str, required=True,
                         help="path or name of checkpoints")
-    parser.add_argument('--no_use_kenlm', type=str, default=False,
+    parser.add_argument('--no_use_kenlm', default=False, action='store_true',
                         help="Not use KenLm during inference ?")
     parser.add_argument('--audio_path', type=str, default=None,
                         help="If it's passed the inference will be done in all audio files in this path and the dataset present in the config json will be ignored")

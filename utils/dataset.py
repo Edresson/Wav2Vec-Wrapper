@@ -64,7 +64,6 @@ class Dataset(object):
         self.normalise_texts()
         
         self.audio_preprocess_and_prepare_dataset()
-        
 
     def initialize_datasets(self):
         for dataset_dict in self.config.datasets['train']:
@@ -173,14 +172,16 @@ class DataColletor:
             This is especially useful to enable the use of Tensor Cores on NVIDIA hardware with compute capability >=
             7.5 (Volta).
     """
-
-    processor: Wav2Vec2Processor
-    padding: Union[bool, str] = True
-    test: Union[bool, str] = False
-    max_length: Optional[int] = None
-    max_length_labels: Optional[int] = None
-    pad_to_multiple_of: Optional[int] = None
-    pad_to_multiple_of_labels: Optional[int] = None
+    def __init__(self, processor, audio_augmentator=None, sampling_rate=16000, padding=True, test=False, max_length=None, max_length_labels=None, pad_to_multiple_of=None, pad_to_multiple_of_labels=None):
+        self.processor = processor
+        self.audio_augmentator = audio_augmentator
+        self.sampling_rate = sampling_rate
+        self.padding = padding
+        self.test = test
+        self.max_length = max_length
+        self.max_length_labels = max_length_labels
+        self.pad_to_multiple_of = pad_to_multiple_of
+        self.pad_to_multiple_of_labels = pad_to_multiple_of_labels
 
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         # split inputs and labels since they have to be of different lenghts and need
@@ -189,7 +190,12 @@ class DataColletor:
         label_features = []
         audio_paths = []
         for feature in features:
-            input_features.append({"input_values": feature["input_values"]})
+            if self.audio_augmentator is not None:
+                input_tensor = self.audio_augmentator(np.array(feature["input_values"]), sample_rate=self.sampling_rate).tolist()
+            else:
+                input_tensor = feature["input_values"]
+
+            input_features.append({"input_values":input_tensor})
             label_features.append({"input_ids": feature["labels"]})
 
             if self.test:
