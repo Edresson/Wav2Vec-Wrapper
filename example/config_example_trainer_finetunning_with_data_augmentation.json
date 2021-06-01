@@ -11,12 +11,12 @@
         "gain":{
             "min_gain_in_db": -18.0,
             "max_gain_in_db": 6,
-            "p": 0.5 // propability of apply this method, 0 is disable
+            "p": 0.0 // propability of apply this method, 0 is disable
         },
         "pitch_shift":{
             "min_semitones": -3,
             "max_semitones": 3,
-            "p": 0.5 // propability of apply this method, 0 is disable
+            "p": 0.0 // propability of apply this method, 0 is disable
         },
         "gaussian":{
             "min_amplitude": 0.0001,
@@ -54,18 +54,17 @@
     "batch_size": 16,       // Batch size for training.
     "mixed_precision": true,     // level of optimization with NVIDIA's apex feature for automatic mixed FP16/FP32 precision (AMP), NOTE: currently only O1 is supported, and use "O1" to activate.
     "early_stop_epochs": 20, // If 0 disabled else Number of epochs for stop training with validation loss dont decrease 
-    "preprocess_dataset": true, // if true, the dataset will be pre-processed and saved in disk, otherwise the audio files will be loaded in each step. Preprocessing makes training faster, but requires much more disk space.
 
     // OPTIMIZER
     "epochs": 100,                // total number of epochs to train.
-    "lr": 0.0003,                  // Initial learning rate.
+    "lr": 0.00003,                  // Initial learning rate.
 
     // LOGGING
     "logging_steps": 100,    // Number of steps to plot.
     "load_best_model_at_end": true,
     "save_total_limit": 3,
     "warmup_ratio": 0, // 0 disable Ratio of total training steps used for a linear warmup from 0 to learning_rate
-    "warmup_steps": 5000, // 0 disable  Number of steps used for a linear warmup from 0 to learning_rate
+    "warmup_steps": 0, // 0 disable  Number of steps used for a linear warmup from 0 to learning_rate
 
     // DATA LOADING
     "num_loader_workers": 8,        // number of training data loader processes. Don't set it too big. 4-8 are goo
@@ -77,14 +76,14 @@
     "hidden_dropout": 0.1, // The dropout probabilitiy for all fully connected layers in the embeddings, encoder, and pooler.
     "feat_proj_dropout": 0.1, // The dropout probabilitiy for all 1D convolutional layers in feature extractor.
     "mask_time_prob": 0.1, //  Propability of each feature vector along the time axis to be chosen as the start of the vector span to be masked.
-    "layerdrop": 0.1,  // The LayerDrop probability.
+    "layerdrop": 0.1,  // The LayerDrop probability. 
     "gradient_checkpointing": true,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
 
 
     // PATHS
-    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice-test-hugging-face-trainer-data-augmentation-test/",
+    "output_path": "../checkpoints/Wav2Vec/Fine-tuning/PT-CommonVoice-test-hugging-face-trainer-test-finetuning-with-data-augmentation/",
     // CACHE
-    "dataset_cache": "../datasets/datasets",
+    "dataset_cache": "../datasets/datasets/",
 
     // DATASETS
     "datasets":{

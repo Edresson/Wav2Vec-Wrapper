@@ -10,6 +10,7 @@ import itertools as it
 from jiwer import wer
 from tqdm import tqdm
 import pandas as pd
+import os
 
 try:
     from flashlight.lib.sequence.criterion import CpuViterbiPath, get_data_ptr_as_bytes
@@ -33,7 +34,7 @@ except:
     LM = object
     LMState = object
 
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, load_metric, concatenate_datasets
 
 from transformers import Wav2Vec2CTCTokenizer
 from transformers import Wav2Vec2FeatureExtractor
@@ -42,8 +43,9 @@ from transformers import Wav2Vec2ForCTC
 
 from utils.generic_utils import load_config, load_vocab, calculate_wer
 
-from utils.dataset import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor
+from utils.dataset_preprocessed import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor
 from torch.utils.data import DataLoader
+
 
 def remove_invalid_characters(batch):
     text = batch[text_column].lower()
@@ -53,6 +55,8 @@ def remove_invalid_characters(batch):
     return batch
 
 def load_audio(batch):
+    if dataset_base_path:
+        batch[audio_path_column] = os.path.join(dataset_base_path, batch[audio_path_column])
     speech_array, sampling_rate = torchaudio.load(batch[audio_path_column])
     batch["speech"] = speech_array.squeeze().numpy()
     batch["sampling_rate"] = sampling_rate
@@ -69,6 +73,7 @@ def resample_audio(batch):
 def prepare_dataset(batch):
     batch['audio_path'] = batch[audio_path_column]
     batch["input_values"] = processor(batch["speech"], sampling_rate=config['sampling_rate']).input_values
+
     if "target_text" in batch:
         with processor.as_target_processor():
             batch["labels"] = processor(batch["target_text"]).input_ids
@@ -216,8 +221,11 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
                 pred_string = processor.batch_decode(pred_ids)
 
                 for i in range(len(audios_path)):
-                    predictions.append([audios_path[i], pred_string[i]])
-                
+                    output_wav_path = audios_path[i]
+                    if dataset_base_path:
+                        output_wav_path = output_wav_path.replace(dataset_base_path, '').replace(dataset_base_path+'/', '')
+
+                    predictions.append([output_wav_path, pred_string[i]])
 
             steps += 1
     if calcule_wer: 
@@ -250,23 +258,24 @@ if __name__ == '__main__':
     # Use CUDA
     USE_CUDA = torch.cuda.is_available()
 
-    feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=config['sampling_rate'], padding_value=0.0, do_normalize=True, return_attention_mask=True)
-    processor = Wav2Vec2Processor.from_pretrained(args.checkpoint_path_or_name)
-    # force tokenizer lower case for compatibility
-    processor.tokenizer.do_lower_case = True
-
-    data_collator = DataColletor(processor=processor, padding=True, test=True)
-
-
     model = Wav2Vec2ForCTC.from_pretrained(args.checkpoint_path_or_name)
 
-    if USE_CUDA:
-        model = model.cuda()
-
+    feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=config['sampling_rate'], padding_value=0.0, do_normalize=True, return_attention_mask=True)
+    processor = Wav2Vec2Processor.from_pretrained(args.checkpoint_path_or_name)
     vocab_dict = processor.tokenizer.get_vocab()
     pad_token = processor.tokenizer.pad_token
     silence_token = processor.tokenizer.word_delimiter_token
     unk_token = processor.tokenizer.unk_token
+
+    # if the model uses upper words in vocab force tokenizer lower case for compatibility with our data loader
+    if list(vocab_dict.keys())[-1].isupper():
+        processor.tokenizer.do_lower_case = True
+
+    data_collator = DataColletor(processor=processor, padding=True, test=True)
+
+    if USE_CUDA:
+        model = model.cuda()
+
     if not args.no_use_kenlm:
         print("> Inference using KenLM")
         kenlm = KenLMDecoder(config.KenLM, vocab_dict, blank=pad_token, silence=silence_token, unk=unk_token)
@@ -280,6 +289,21 @@ if __name__ == '__main__':
         text_column, audio_path_column = parse_dataset_dict(test_dataset_config)
 
         dataset = load_dataset(**test_dataset_config)
+        # made compatibility with csv load
+        if isinstance(dataset, dict) and 'train' in dataset.keys():
+            concat_list = []
+            for k in dataset.keys():
+                concat_list.append(dataset[k])
+            dataset = concatenate_datasets(concat_list)
+
+        if 'files_path' in config['datasets'].keys() and config.datasets['files_path']:
+            if test_dataset_config['name'].lower() == 'csv':
+                dataset_base_path = config.datasets['files_path']
+            else:
+                print("> Warning: datasets['files_path'] igonored because dataset is not CSV !")
+                dataset_base_path = None
+        else:
+            dataset_base_path = None
 
         # preprocess dataset
         dataset = remove_extra_columns(dataset, text_column, audio_path_column)
@@ -310,7 +334,10 @@ if __name__ == '__main__':
         preds = test(model, test_dataset, processor, kenlm,  calcule_wer=True, return_predictions=True)
 
     if args.output_csv:
-        df = pd.DataFrame(preds, columns=["audio_path", "text"])
+        root_path = os.path.dirname(args.output_csv)
+        os.makedirs(root_path, exist_ok=True)
+
+        df = pd.DataFrame(preds, columns=["file_path", "transcription"])
         df.to_csv(args.output_csv, index=False)
         print("\n\n> Evaluation outputs saved in: ", args.output_csv)
         

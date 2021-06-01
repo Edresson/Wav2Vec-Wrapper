@@ -11,7 +11,6 @@ import librosa
 import numpy as np
 
 from shutil import copyfile
-from utils.dataset import Dataset, DataColletor
 from utils.generic_utils import load_config, load_vocab
 
 from transformers import Wav2Vec2CTCTokenizer
@@ -51,16 +50,25 @@ if __name__ == '__main__':
                         help="json file with configurations")
     parser.add_argument('--checkpoint_path', type=str, default='facebook/wav2vec2-large-xlsr-53',
                         help="path of checkpoint pt file, for continue training")
+    parser.add_argument('--continue_train',
+                        default=False,
+                        action='store_true',
+                        help='If True Continue the training using the checkpoint_path')
     args = parser.parse_args()
 
     # config_path = 'example/config_example.json'
     config = load_config(args.config_path)
+    
     
     OUTPUT_DIR = config['output_path']
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     vocab = load_vocab(config.vocab['vocab_path'])
 
+    if 'preprocess_dataset' in config.keys() and config['preprocess_dataset']:
+        from utils.dataset_preprocessed import Dataset, DataColletor
+    else:
+        from utils.dataset import Dataset, DataColletor
     dataset = Dataset(config, vocab)
 
     # preprocess and normalise datasets
@@ -73,7 +81,7 @@ if __name__ == '__main__':
 
     # save vocab
     with open(os.path.join(OUTPUT_DIR, 'vocab.json'), "w", encoding="utf-8") as vocab_file:
-        json.dump(vocab, vocab_file)
+        json.dump(vocab, vocab_file, ensure_ascii=False)
 
     # save config train
     copyfile(args.config_path, os.path.join(OUTPUT_DIR, 'config_train.json'))
@@ -96,9 +104,15 @@ if __name__ == '__main__':
     # create data colletor
     data_collator = DataColletor(processor, audio_augmentator=audio_augmentator, sampling_rate=config.sampling_rate, padding=True)
 
+    if os.path.isdir(args.checkpoint_path):
+        last_checkpoint = get_last_checkpoint(args.checkpoint_path)
+        print("> Resuming Train with checkpoint: ", last_checkpoint)
+    else:
+        last_checkpoint = None
+
     # load model
     model = Wav2Vec2ForCTC.from_pretrained(
-        args.checkpoint_path, 
+        last_checkpoint if last_checkpoint else args.checkpoint_path, 
         attention_dropout=config['attention_dropout'],
         hidden_dropout=config['hidden_dropout'],
         feat_proj_dropout=config['feat_proj_dropout'],
@@ -115,10 +129,10 @@ if __name__ == '__main__':
     if config['freeze_feature_extractor']:
         model.freeze_feature_extractor()
 
-
     training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
-    logging_dir=os.path.join(OUTPUT_DIR, "tensorboard"), 
+    logging_dir=os.path.join(OUTPUT_DIR, "tensorboard"),
+    report_to="all",
     group_by_length=True,
     logging_first_step=True,
     per_device_train_batch_size=config['batch_size'],
@@ -148,11 +162,12 @@ if __name__ == '__main__':
         eval_dataset=dataset.devel_dataset,
         tokenizer=processor.feature_extractor
     )
+
     if config['early_stop_epochs']:
         trainer.add_callback(EarlyStoppingCallback(early_stopping_patience=config['early_stop_epochs']))
-
+    
     print("> Starting Training")
-    train_result = trainer.train()
+    train_result = trainer.train(resume_from_checkpoint=last_checkpoint if args.continue_train else None)
     # save best model
     # model.save_pretrained(OUTPUT_DIR)
     trainer.save_model()

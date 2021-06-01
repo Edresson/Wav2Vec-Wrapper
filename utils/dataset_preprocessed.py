@@ -77,7 +77,7 @@ class Dataset(object):
             self.devel_dataset = self.make_dataset(dataset_dict)
 
     def remove_extra_and_rename_columns(self, dataset, text_column, audio_path_column):
-        if isinstance(dataset, dict) and 'train' in dataset.keys():
+        if 'train' in dataset.keys():
             dataset = dataset['train']
         # remove unused columns
         dataset = remove_extra_columns(dataset, text_column, audio_path_column)
@@ -128,18 +128,45 @@ class Dataset(object):
 
     def audio_preprocess_and_prepare_dataset(self):
 
-        def prepare_dataset(batch):
+        def read_audio(batch):
             if self.files_path:
                 batch[self.audio_path_column] = os.path.join(self.files_path, batch[self.audio_path_column])
-            batch["input_values"] = batch[self.audio_path_column]
-            with self.processor.as_target_processor():
-                batch["labels"] = self.processor(batch[self.text_column]).input_ids
-            batch["length"] = len(batch["labels"])
+
+            speech_array, sampling_rate = torchaudio.load(batch[self.audio_path_column])
+            batch["speech"] = speech_array.squeeze().numpy()
+            batch["sampling_rate"] = sampling_rate
+            batch["target_text"] = batch[self.text_column]
             return batch
 
+        def resample_audio(batch):
+            if batch["sampling_rate"] != self.config['sampling_rate']:
+                #speech_array = torchaudio.transforms.Resample(batch["sampling_rate"], self.config['sampling_rate'])(torch.FloatTensor(speech_array).unsqueeze(0)).squeeze().numpy()
+                batch["speech"] = librosa.resample(np.asarray(batch["speech"]),  batch["sampling_rate"], self.config['sampling_rate'])
+                batch["sampling_rate"] = self.config['sampling_rate']
+            return batch
+        
+        def prepare_dataset(batch):
+            try:
+                batch["input_values"] = self.processor(batch["speech"], sampling_rate=self.config['sampling_rate']).input_values
+                with self.processor.as_target_processor():
+                    batch["labels"] = self.processor(batch["target_text"]).input_ids
+                batch["length"] = len(batch["labels"])
+            except:
+                print("Error during load of audio:", batch["target_text"])
+                
+            return batch
+
+        print("> Load Audios")
+        self.train_dataset = self.train_dataset.map(read_audio, remove_columns=self.train_dataset.column_names)
+        self.devel_dataset = self.devel_dataset.map(read_audio, remove_columns=self.devel_dataset.column_names)
+
+        print("> Resample Audios if necessary")
+        self.train_dataset = self.train_dataset.map(resample_audio, num_proc=self.config['num_loader_workers'])
+        self.devel_dataset = self.devel_dataset.map(resample_audio, num_proc=self.config['num_loader_workers'])
+        
         print("> Prepare dataloader")
-        self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, num_proc=self.config['num_loader_workers'], batched=False)
-        self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, num_proc=self.config['num_loader_workers'], batched=False)
+        self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=True)
+        self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=True)
 
 @dataclass
 class DataColletor:
@@ -185,26 +212,16 @@ class DataColletor:
         label_features = []
         audio_paths = []
         for feature in features:
-            try:
-                # load wav
-                speech_array, sampling_rate = torchaudio.load(feature["input_values"])
-                if sampling_rate != self.sampling_rate:
-                    raise RuntimeError('Audio Sampling rate different than Config sampling rate ! Make sure that you convert the dataset sampling rate !')
-                speech_array = speech_array.squeeze().numpy()
-                input_tensor = self.processor(speech_array, sampling_rate=sampling_rate).input_values
-                input_tensor = np.squeeze(input_tensor)
-                
-                if self.audio_augmentator is not None:
-                    input_tensor = self.audio_augmentator(input_tensor, sample_rate=self.sampling_rate).tolist()
+            if self.audio_augmentator is not None:
+                input_tensor = self.audio_augmentator(np.array(feature["input_values"]), sample_rate=self.sampling_rate).tolist()
+            else:
+                input_tensor = feature["input_values"]
 
-                input_features.append({"input_values":input_tensor})
-                label_features.append({"input_ids": feature["labels"]})
+            input_features.append({"input_values":input_tensor})
+            label_features.append({"input_ids": feature["labels"]})
 
-                if self.test:
-                    audio_paths.append(feature['audio_path'])
-            except:
-                print("Error during load of audio:", feature["input_values"])
-                continue
+            if self.test:
+                audio_paths.append(feature['audio_path'])
 
         batch = self.processor.pad(
             input_features,
