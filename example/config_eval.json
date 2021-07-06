@@ -1,0 +1,14 @@
+{
+    "sampling_rate": 16000,
+    "KenLM":{
+        "kenlm_model_path": "../fr-lm.trie.bin", // Path for KenLM model
+        "lexicon_path": "../lexicon.lst", // vocab file to limit the decoder search
+        "beam": 2048, 
+        "nbest": 1,
+        "beam_threshold": 25, 
+        "lm_weight": 1, 
+        "word_score": -1,
+        "sil_weight": 0
+    }
+}
+
