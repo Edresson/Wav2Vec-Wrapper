@@ -11,6 +11,7 @@ from jiwer import wer
 from tqdm import tqdm
 import pandas as pd
 import os
+from glob import glob
 
 try:
     from flashlight.lib.sequence.criterion import CpuViterbiPath, get_data_ptr_as_bytes
@@ -237,14 +238,44 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
 
     return predictions
 
+def inference(model, wavs, processor, kenlm):
+    model.eval()
+    predictions = []
+    with torch.no_grad():
+        for wav in tqdm(wavs):
+            wav, path = wav
+            features = processor(wav.numpy(), sampling_rate=16_000, padding=True, return_tensors="pt")
+            input_values = features.input_values
+            attention_mask = features.attention_mask
+
+            if USE_CUDA:
+                input_values = input_values.cuda(non_blocking=True)
+                attention_mask = attention_mask.cuda(non_blocking=True)
     
+            logits = model(input_values, attention_mask=attention_mask).logits
+
+            if kenlm:
+                logits = torch.nn.functional.log_softmax(logits.float(), dim=-1)
+                # get all candidates
+                lm_tokens, lm_scores = kenlm.decode(logits.cpu().detach())
+                # choise the best candidate
+                pred_ids = lm_tokens[0][:]
+            else:
+                pred_ids = np.argmax(logits.cpu().detach().numpy(), axis=-1)
+            
+            # get text
+            pred_string = processor.batch_decode(pred_ids)
+            predictions.append([path, pred_string[0]])
+    return predictions
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config_path', type=str, required=True,
                         help="json file with configurations")
     parser.add_argument('--checkpoint_path_or_name', type=str, required=True,
                         help="path or name of checkpoints")
-    parser.add_argument('--no_use_kenlm', default=False, action='store_true',
+    parser.add_argument('--no_kenlm', default=False, action='store_true',
                         help="Not use KenLm during inference ?")
     parser.add_argument('--audio_path', type=str, default=None,
                         help="If it's passed the inference will be done in all audio files in this path and the dataset present in the config json will be ignored")
@@ -276,7 +307,7 @@ if __name__ == '__main__':
     if USE_CUDA:
         model = model.cuda()
 
-    if not args.no_use_kenlm:
+    if not args.no_kenlm:
         print("> Inference using KenLM")
         kenlm = KenLMDecoder(config.KenLM, vocab_dict, blank=pad_token, silence=silence_token, unk=unk_token)
     else:
@@ -333,11 +364,24 @@ if __name__ == '__main__':
         print("\n\n> Starting Evaluation \n\n")
         preds = test(model, test_dataset, processor, kenlm,  calcule_wer=True, return_predictions=True)
 
+    else:
+        # load dataset
+        wavs = glob(os.path.join(args.audio_path,'*.wav'))
+
+        vocab_string = vocab_to_string(vocab_dict, pad_token, silence_token, unk_token).lower()
+
+        print("\n\n> Load and Resample Audio Files\n\n")
+        # Load audio files
+        wavs = [(torch.tensor(librosa.load(path, config['sampling_rate'])[0]), path) for path in wavs]
+
+        print("\n\n> Starting Evaluation \n\n")
+        preds = inference(model, wavs, processor, kenlm)
+        
+    df = pd.DataFrame(preds, columns=["file_path", "transcription"])
     if args.output_csv:
         root_path = os.path.dirname(args.output_csv)
         os.makedirs(root_path, exist_ok=True)
-
-        df = pd.DataFrame(preds, columns=["file_path", "transcription"])
         df.to_csv(args.output_csv, index=False)
         print("\n\n> Evaluation outputs saved in: ", args.output_csv)
-        
+    else:
+        print(df.to_string())

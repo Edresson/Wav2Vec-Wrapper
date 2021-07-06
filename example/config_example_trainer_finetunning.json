@@ -131,7 +131,7 @@
     // used only for test 
     "KenLM":{
         "kenlm_model_path": "../../kenLM/binaries/subtitle/4-gram/lm.binary", // Path for KenLM model
-        "lexicon_path": "example/lexicon.lst", // file with all words for limit the decoder search
+        "lexicon_path": "example/lexicon.lst", // vocab file to limit the decoder search
         "beam": 2048, 
         "nbest": 1,
         "beam_threshold": 25, 
