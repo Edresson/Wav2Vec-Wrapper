@@ -51,7 +51,7 @@
     },
 
     // TRAINING
-    "batch_size": 16,       // Batch size for training.
+    "batch_size": 2,       // Batch size for training.
     "mixed_precision": true,     // level of optimization with NVIDIA's apex feature for automatic mixed FP16/FP32 precision (AMP), NOTE: currently only O1 is supported, and use "O1" to activate.
     "early_stop_epochs": 20, // If 0 disabled else Number of epochs for stop training with validation loss dont decrease 
 
@@ -122,7 +122,7 @@
                 {
                     "path": "common_voice",
                     "name": "pt",
-                    "split": "test",
+                    "split": "test[:30]",
                     "text_column": "sentence", // column that contain the texts one for dataset
                     "path_column": "path" // columns that contain the audio paths one for dataset
                 }       
@@ -130,10 +130,10 @@
     },
     // used only for test 
     "KenLM":{
-        "kenlm_model_path": "../../kenLM/binaries/subtitle/4-gram/lm.binary", // Path for KenLM model
-        "lexicon_path": "example/lexicon.lst", // vocab file to limit the decoder search
+        "kenlm_model_path": "../checkpoints/kenLM/char-5gram/pt-BR.char.5-gram.binary", // Path for KenLM model
+        "lexicon_path": "example/lexicon.lst", // file with all words for limit the decoder search
         "beam": 2048, 
-        "nbest": 1,
+        "nbest": 100, // return 100 best kenLm candidates
         "beam_threshold": 25, 
         "lm_weight": 1, 
         "word_score": -1,
