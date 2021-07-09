@@ -3,6 +3,7 @@ import re
 import yaml
 import json
 import torch
+import jiwer
 import numpy as np
 
 from datasets import load_metric
@@ -14,11 +15,13 @@ def calculate_wer(pred_ids, labels,  processor, debug=False):
 
     pred_string = processor.batch_decode(pred_ids)
     label_string = processor.batch_decode(labels, group_tokens=False)
-
-    wer = wer_metric.compute(predictions=pred_string, references=label_string)
+    # wer = wer_metric.compute(predictions=pred_string, references=label_string)
+    wer = 0
+    for i in range(len(pred_string)):
+        wer += jiwer.wer(label_string[i], pred_string[i])
     if debug:
         print(" > DEBUG: \n\n PRED:", pred_string, "\n Label:", label_string)
-    return wer
+    return wer/len(pred_string)
 
 class AttrDict(dict):
     """A custom dict which converts dict keys

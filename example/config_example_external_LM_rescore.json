@@ -1,0 +1,50 @@
+{
+    "seed": 42,
+    // AUDIO PARAMS
+    "sampling_rate": 16000,
+
+    // VOCABULARY PARAMETERS
+    "vocab":{
+        "vocab_path": "example/vocab_example.json", // generic vocab for Portuguese
+        "blank": "<pad>", // blank token for padding
+        "silence": "|", // token between words
+        "unk": "<unk>" // unk token
+    },
+
+    "batch_size": 3,       // Batch size for training.
+    // DATA LOADING
+    "num_loader_workers": 8,        // number of training data loader processes. Don't set it too big. 4-8 are goo
+
+    // CACHE
+    "dataset_cache": "../datasets/datasets/",
+
+    // DATASETS
+    "datasets":{
+        "test":
+                {
+                    "path": "common_voice",
+                    "name": "pt",
+                    "split": "test[:30]",
+                    "text_column": "sentence", // column that contain the texts one for dataset
+                    "path_column": "path" // columns that contain the audio paths one for dataset
+                }       
+    
+    },
+    // used only for test 
+    "KenLM":{
+        "kenlm_model_path": "../checkpoints/kenLM/char-5gram/pt-BR.char.5-gram.binary", // Path for KenLM model
+        "lexicon_path": "example/lexicon.lst", // file with all words for limit the decoder search
+        "beam": 2048, 
+        "nbest": 100, // return 100 best kenLm candidates
+        "beam_threshold": 25, 
+        "lm_weight": 1, 
+        "word_score": -1,
+        "sil_weight": 0
+    },
+    "rescore":{
+        "lm_path_or_name": "pierreguillou/gpt2-small-portuguese", // hugging face LM path or name
+        "KenLM_weight": 1, 
+        "ExternalLM_weight": 0
+    }
+}
+

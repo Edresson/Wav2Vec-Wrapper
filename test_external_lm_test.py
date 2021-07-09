@@ -46,127 +46,77 @@ from utils.generic_utils import load_config, load_vocab, calculate_wer
 from utils.dataset_preprocessed import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor
 from torch.utils.data import DataLoader
 
-
-# bert
-
-
+from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 # BERT
 from transformers import BertTokenizer, BertForMaskedLM
 
-def score_fun_linear(s1, s2):
-  return s2 + s1
 
-class BERTScorer:
-  def __init__(self, model_name, score_fn=score_fun_linear):
-    self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # Load pre-trained model tokenizer (vocabulary)
-    self._tokenizer = BertTokenizer.from_pretrained(model_name)
-    # Load pre-trained model (weights)
-    self._model = BertForMaskedLM.from_pretrained(model_name).to(self._device)
-    self._model.eval()
-    self._score_fn = score_fn
-    self._CrossEntropyLoss = torch.nn.CrossEntropyLoss(reduction='none') # return loss for batch idxs
+def score_fun_linear(s1, s2, w1=1, w2=1):
+  return s1*w1 + s2*w2
 
-    print('---->>> Testing Model.')
-    self.test_model(candidates=['Olá meu nome é João',
-                                'Olá meu nome é Joao',
-                                'Olá meu nome e Joao',
-                                'O menino botou fogo no cidade',
-                                'O menino botou fogo na cidade'])
-    print('---->>> Done testing model')
+class Scorer:
+    def __init__(self, model_name, kenLM_weight=1, externalLM_weight=1, score_fn=score_fun_linear):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        self.tokenizer = GPT2TokenizerFast.from_pretrained(model_name)
+        self.model = GPT2LMHeadModel.from_pretrained(model_name).to(self.device)
+        self.model.eval()
+        self.kenLM_weight = kenLM_weight
+        self.externalLM_weight = externalLM_weight
 
-  @staticmethod
-  def chunks(l, n):
-    for i in range(0, len(l), n):
-      yield l[i:i + n]
+        self.score_fn = score_fn
 
+        print('---->>> Testing Model.')
+        self.test_model(['a capital da frança é paris', 'a capital da franca é paris', 'a capital da frança é parir'])
+        print('---->>> Done testing model')
 
-  def score_with_candidates2(self, sentences):
-    input_ids = self._tokenizer(sentences, padding = True, return_tensors="pt").to(self._device)
-    with torch.no_grad():
-        mask = input_ids['attention_mask']
-        predictions = self._model(input_ids["input_ids"], attention_mask=mask)[0]
-        predictions = predictions.transpose(1,2)
-        excepted = input_ids["input_ids"]
-        
-        loss = self._CrossEntropyLoss(predictions.float(), excepted).data 
-        loss = loss.masked_fill(mask == 0, 0)
-    return loss.sum(dim=1)
+    def calculate_perplexity(self, text):
+        encodings = self.tokenizer(text, return_tensors="pt")
+        max_length = self.model.config.n_positions
+        # stride = 1
+        stride = 512
 
-  def score_with_candidates(self, sentences):
-    ''' Its masked all token in all sentences generate more candidates, before its '''
-    masked_sentences = []
-    masked_count = []
-    no_maked_setences = []
-    for i in range(len(sentences)):
-      sentence = sentences[i]
-      masked_count.append(0)
-      for token in sentence.split(" "):
-        masked_sentences.append(sentence.replace(' '+token+' ', ' [MASK] '))
-        no_maked_setences.append(sentence)
-        masked_count[i] += 1
+        lls = []
+        for i in (range(0, encodings.input_ids.size(1), stride)):
+            begin_loc = max(i + stride - max_length, 0)
+            end_loc = min(i + stride, encodings.input_ids.size(1))
+            trg_len = end_loc - i
+            input_ids = encodings.input_ids[:,
+                                            begin_loc:end_loc].to(self.device)
+            target_ids = input_ids.clone()
+            target_ids[:, :-trg_len] = -100
 
-    input_ids = self._tokenizer(masked_sentences, padding = True, return_tensors="pt").to(self._device)
-    excepteds_ids = self._tokenizer(no_maked_setences, padding = True, return_tensors="pt").to(self._device)
+            with torch.no_grad():
+                outputs = self.model(input_ids, labels=target_ids)
+                log_likelihood = outputs[0] * trg_len
+            if not math.isnan(log_likelihood):
+                lls.append(log_likelihood)
+        ppl = torch.exp(torch.stack(lls).sum() / end_loc).item()
+        return ppl
 
-    with torch.no_grad():
-        mask = input_ids['attention_mask']
-        excepted = excepteds_ids["input_ids"]
-        predictions = self._model(input_ids["input_ids"], attention_mask=mask)[0]
-        predictions = predictions.transpose(1, 2)
-        if predictions.size(2) > excepted.size(1):
-            predictions = predictions[:, :, :excepted.size(1)]
-            mask = mask[:, :predictions.size(2)]
+    def test_model(self, candidates):
+        for candidate in candidates:
+            ppl = self.calculate_perplexity(candidate)
+            print("{0} ---- {1}".format(candidate, ppl))
 
+    def chose_best_candidate(self, candidates, candidate_scores):
+        best_candidate = None
+        best_candidate_id = None
+        best_score = float('inf')
 
-        else:
-            excepted = excepted[:, :predictions.size(2)]
-            mask = mask[:, :predictions.size(2)]
+        for i in range(len(candidates)):
+            # *-1 because in kenLM high is better
+            kenlm_score = candidate_scores[i] * -1
+            candidate = candidates[i]
+            external_lm_score = self.calculate_perplexity(candidate)
+            new_score = self.score_fn(kenlm_score, external_lm_score, self.kenLM_weight, self.externalLM_weight)
+            # print(candidate, "-->", new_score)
+            if new_score < best_score:
+                best_candidate = candidate
+                best_candidate_id = i
+                best_score = new_score
 
-        loss = self._CrossEntropyLoss(predictions.float(), excepted).data 
-        loss = loss.masked_fill(mask == 0, 0)
-        # unpack sentece parts
-        loss_sum = []
-        start = 0
-        for i in range(len(masked_count)):
-          loss_sum.append(loss[start:start+masked_count[i]].sum()/masked_count[i])
-          start += masked_count[i]
-    return torch.FloatTensor(loss_sum)
-
-  def nlm_compute(self, candidates_full, bert_batch_size=100):
-    max_len = 0
-    for candidate in candidates_full:
-      len_c = len(candidate.split(' '))
-      if len_c > max_len:
-        max_len = len_c
-    # reset batch_size because each sentence generate max_len candidates
-    bert_batch_size = int(bert_batch_size/max_len)
-    results = torch.zeros(len(candidates_full))
-    with torch.no_grad():
-      for j, candidates in enumerate(self.chunks(candidates_full, bert_batch_size)):
-        result = self.score_with_candidates(candidates)
-        results[j*bert_batch_size:j*bert_batch_size + len(result)] = result * -1
-    return results
-
-  def test_model(self, candidates):
-    for item in zip(list(self.nlm_compute(candidates).cpu().detach().numpy()), candidates):
-      print("{0} ---- {1}".format(item[0], item[1]))
-
-
-  def chose_best_candidate(self, candidates, candidate_scores):
-    nln_scores = self.nlm_compute(candidates)
-    candidate = candidates[0]
-    score = -1000000000000
-    for i in range(len(candidates)):
-      kenlm_score = candidate_scores[i]
-      neural_score = nln_scores[i].item()
-      new_score = self._score_fn(kenlm_score, neural_score)
-      if new_score >  score:
-        # print(score, new_score, s1, s4, i)
-        candidate = candidates[i]
-        score = new_score
-    return (candidate, nln_scores)
+        return (best_candidate_id, best_candidate, best_score)
 
 
 def remove_invalid_characters(batch):
@@ -201,8 +151,9 @@ def prepare_dataset(batch):
             batch["labels"] = processor(batch["target_text"]).input_ids
     return batch
 
+
 class KenLMDecoder(object):
-    def __init__(self, kenlm_args, vocab_dict, blank="<pad>", silence="|", unk="<unk>"):
+    def __init__(self, kenlm_args, vocab_dict, rescore_args=None, blank="<pad>", silence="|", unk="<unk>"):
 
         self.vocab_size = len(vocab_dict)
         self.blank_token = (vocab_dict[blank])
@@ -210,11 +161,6 @@ class KenLMDecoder(object):
         self.unk_token = vocab_dict[unk]
 
         self.nbest = kenlm_args['nbest']
-        BERT_MODEL_NAME = 'neuralmind/bert-base-portuguese-cased'
-        if BERT_MODEL_NAME:
-            self.neural_lm = BERTScorer(BERT_MODEL_NAME)
-        else:
-            self.neural_lm = None
 
         if kenlm_args['lexicon_path']:
             vocab_keys = vocab_dict.keys()
@@ -306,8 +252,8 @@ class KenLMDecoder(object):
             tokens.append(tokens_nbest)
             scores.append(scores_nbest)
 
-        token_array = np.array(tokens, dtype=object).transpose((1, 0, 2))
-        scores_arrray = np.array(scores, dtype=object).transpose()
+        token_array = np.array(tokens, dtype=object)
+        scores_arrray = np.array(scores, dtype=object)
         return token_array, scores_arrray
 
 def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predictions=False):
@@ -334,26 +280,35 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
                 # get all candidates
                 lm_tokens, lm_scores = kenlm.decode(logits.cpu().detach())
                 # choise the best candidate
-                pred_ids = lm_tokens[0][:]
-                if kenlm.neural_lm:
-                    # if external lm ...
+
+                if rescore_lm:
                     pred_ids = [] 
                     for b in range(logits.size(0)):
-                        candidates = []
+                        candidates_ids = []
                         scores = []
-                        for c in range(len(lm_tokens)):
-                            candidate = lm_tokens[c][b]
-                            score = lm_scores[c][b]
-                            candidates.append(candidate)
+                        for c in range(len(lm_tokens[b])):
+                            candidate = lm_tokens[b][c]
+                            score = lm_scores[b][c]
+                            candidates_ids.append(candidate)
                             scores.append(score)
-                        candidates_text = processor.batch_decode(candidates)
 
-                        out_text, _ = kenlm.neural_lm.chose_best_candidate(candidates_text, scores)
+                        candidates_text = processor.batch_decode(candidates_ids)
+                        # if less than 3 tokens, ignore rescore
+                        if len(candidates_text[0].split(' ')) < 3:
+                            # use the best kenLM candidate
+                            pred_id = candidates_ids[0]
+                        else: 
+                            best_candidate_id, _, _ = rescore_lm.chose_best_candidate(candidates_text, scores)
+                            pred_id = candidates_ids[best_candidate_id]
 
-                        with processor.as_target_processor():
-                            pred_id = processor([out_text]).input_ids
-                        pred_ids.append(pred_id[0])
-                    pred_ids = np.array(pred_ids)   
+                        pred_ids.append(pred_id)
+                else:
+
+                    pred_ids = []
+                    for b in range(logits.size(0)):
+                        pred_ids.append(lm_tokens[b][0])
+
+                pred_ids = np.array(pred_ids)   
             else:
                 pred_ids = np.argmax(logits.cpu().detach().numpy(), axis=-1)
 
@@ -391,7 +346,9 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_path_or_name', type=str, required=True,
                         help="path or name of checkpoints")
     parser.add_argument('--no_use_kenlm', default=False, action='store_true',
-                        help="Not use KenLm during inference ?")
+                        help="Not use KenLm during inference ?")     
+    parser.add_argument('--rescore', default=False, action='store_true',
+                        help="Use a external LM to rescore?")
     parser.add_argument('--audio_path', type=str, default=None,
                         help="If it's passed the inference will be done in all audio files in this path and the dataset present in the config json will be ignored")
     parser.add_argument('--output_csv', type=str, default=None,
@@ -428,6 +385,18 @@ if __name__ == '__main__':
     else:
         print("> Inference without KenLM")
         kenlm = None
+
+    if args.rescore:
+        rescore_args = config.rescore if "rescore" in config.keys() else None
+        if rescore_args:
+            print("> Inference with External LM rescoring")
+            rescore_lm = Scorer(rescore_args['lm_path_or_name'], kenLM_weight=rescore_args['KenLM_weight'], externalLM_weight=rescore_args['ExternalLM_weight'])
+        else:
+            print("> Inference without External LM rescoring")
+            rescore_lm = None
+    else:
+        print("> Inference without External LM rescoring")
+        rescore_lm = None
 
     if not args.audio_path:
         # load dataset
@@ -484,6 +453,7 @@ if __name__ == '__main__':
         os.makedirs(root_path, exist_ok=True)
 
         df = pd.DataFrame(preds, columns=["file_path", "transcription"])
+        df.sort_values(by=['file_path'], inplace=True)
         df.to_csv(args.output_csv, index=False)
         print("\n\n> Evaluation outputs saved in: ", args.output_csv)
         
