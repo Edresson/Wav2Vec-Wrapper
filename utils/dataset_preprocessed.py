@@ -165,8 +165,8 @@ class Dataset(object):
         self.devel_dataset = self.devel_dataset.map(resample_audio, num_proc=self.config['num_loader_workers'])
         
         print("> Prepare dataloader")
-        self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=True)
-        self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=True)
+        self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=False)
+        self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=False)
 
 @dataclass
 class DataColletor:
