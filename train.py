@@ -137,7 +137,7 @@ if __name__ == '__main__':
     logging_first_step=True,
     per_device_train_batch_size=config['batch_size'],
     dataloader_num_workers=config['num_loader_workers'],
-    gradient_accumulation_steps=2,
+    gradient_accumulation_steps=config['gradient_accumulation_steps'],
     seed=config.seed,
     num_train_epochs=config['epochs'],
     fp16=config.mixed_precision,
@@ -152,7 +152,6 @@ if __name__ == '__main__':
     greater_is_better=False,
     save_total_limit=config['save_total_limit']
     )
-    
     trainer = Trainer(
         model=model,
         data_collator=data_collator,

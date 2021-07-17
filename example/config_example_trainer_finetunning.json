@@ -58,6 +58,7 @@
     // OPTIMIZER
     "epochs": 100,                // total number of epochs to train.
     "lr": 0.00003,                  // Initial learning rate.
+    "gradient_accumulation_steps": 2,
 
     // LOGGING
     "logging_steps": 100,    // Number of steps to plot.

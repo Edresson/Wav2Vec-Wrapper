@@ -147,7 +147,7 @@ class Dataset(object):
         
         def prepare_dataset(batch):
             try:
-                batch["input_values"] = self.processor(batch["speech"], sampling_rate=self.config['sampling_rate']).input_values
+                batch["input_values"] = np.squeeze(self.processor(batch["speech"], sampling_rate=self.config['sampling_rate']).input_values)
                 with self.processor.as_target_processor():
                     batch["labels"] = self.processor(batch["target_text"]).input_ids
                 batch["length"] = len(batch["labels"])
@@ -165,8 +165,8 @@ class Dataset(object):
         self.devel_dataset = self.devel_dataset.map(resample_audio, num_proc=self.config['num_loader_workers'])
         
         print("> Prepare dataloader")
-        self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=False)
-        self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, batch_size=self.config['batch_size'], num_proc=self.config['num_loader_workers'], batched=False)
+        self.train_dataset = self.train_dataset.map(prepare_dataset, remove_columns=self.train_dataset.column_names, num_proc=self.config['num_loader_workers'], batched=False)
+        self.devel_dataset = self.devel_dataset.map(prepare_dataset, remove_columns=self.devel_dataset.column_names, num_proc=self.config['num_loader_workers'], batched=False)
 
 @dataclass
 class DataColletor:
@@ -216,6 +216,8 @@ class DataColletor:
                 input_tensor = self.audio_augmentator(np.array(feature["input_values"]), sample_rate=self.sampling_rate).tolist()
             else:
                 input_tensor = feature["input_values"]
+            
+            # input_tensor = feature["input_values"]
 
             input_features.append({"input_values":input_tensor})
             label_features.append({"input_ids": feature["labels"]})
@@ -230,6 +232,7 @@ class DataColletor:
             pad_to_multiple_of=self.pad_to_multiple_of,
             return_tensors="pt",
         )
+
         with self.processor.as_target_processor():
             labels_batch = self.processor.pad(
                 label_features,

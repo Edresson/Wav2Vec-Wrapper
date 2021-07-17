@@ -43,8 +43,8 @@
     },
     "rescore":{
         "lm_path_or_name": "pierreguillou/gpt2-small-portuguese", // hugging face LM path or name
-        "KenLM_weight": 1, 
-        "ExternalLM_weight": 0
+        "KenLM_weight": 1,
+        "ExternalLM_weight": 1
     }
 }
 

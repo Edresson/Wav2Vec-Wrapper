@@ -50,6 +50,7 @@
     // OPTIMIZER
     "epochs": 1000,                // total number of epochs to train.
     "lr": 0.0003,                  // Initial learning rate.
+    "gradient_accumulation_steps": 2,
     // ToDo: implement linear warm up
     "lr_scheduler": "ExponentialLR",   // one of the schedulers from https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
     "lr_scheduler_params": {
