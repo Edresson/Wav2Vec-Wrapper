@@ -187,8 +187,9 @@ class KenLMDecoder(object):
 def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predictions=False):
     model.eval()
     predictions = []
-    steps = 0
+    tot_samples = 0
     tot_wer = 0
+    tot_cer = 0
     with torch.no_grad():
         for batch in tqdm(test_dataset):
             input_values, attention_mask = batch['input_values'], batch['attention_mask']
@@ -213,8 +214,10 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
                 pred_ids = np.argmax(logits.cpu().detach().numpy(), axis=-1)
 
             if calcule_wer:
-                # compute metrics 
-                tot_wer += calculate_wer(pred_ids, labels.cpu().detach().numpy(), processor)
+                # compute metrics
+                wer, cer = calculate_wer(pred_ids, labels.cpu().detach().numpy(), processor, vocab_string)
+                tot_wer += wer
+                tot_cer += cer
 
             if return_predictions:
                 audios_path = batch['audio_path']
@@ -226,15 +229,15 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
                     if dataset_base_path:
                         output_wav_path = output_wav_path.replace(dataset_base_path, '').replace(dataset_base_path+'/', '')
 
-                    predictions.append([output_wav_path, pred_string[i]])
-
-            steps += 1
+                    predictions.append([output_wav_path, pred_string[i].lower()])
+            tot_samples += input_values.size(0)
     if calcule_wer: 
         # calculate avg of metrics
-        avg_wer = tot_wer/steps
-        
+        avg_wer = tot_wer/tot_samples
+        avg_cer = tot_cer/tot_samples
         print("\n\n --> TEST PERFORMANCE\n")
         print("     | > :   WER    ({:.5f})\n".format(avg_wer))
+        print("     | > :   CER    ({:.5f})\n".format(avg_cer))
 
     return predictions
 
@@ -294,14 +297,17 @@ if __name__ == '__main__':
     feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=config['sampling_rate'], padding_value=0.0, do_normalize=True, return_attention_mask=True)
     processor = Wav2Vec2Processor.from_pretrained(args.checkpoint_path_or_name)
     vocab_dict = processor.tokenizer.get_vocab()
+     # if the model uses upper words in vocab force tokenizer lower case for compatibility with our data loader
+    for c in list(vocab_dict.keys()):
+        if c.isupper():
+            processor.tokenizer.do_lower_case = True
+            print("> Force lowercase Tokenizer !")
+            break
     pad_token = processor.tokenizer.pad_token
     silence_token = processor.tokenizer.word_delimiter_token
     unk_token = processor.tokenizer.unk_token
 
-    # if the model uses upper words in vocab force tokenizer lower case for compatibility with our data loader
-    if list(vocab_dict.keys())[-1].isupper():
-        processor.tokenizer.do_lower_case = True
-
+   
     data_collator = DataColletor(processor=processor, padding=True, test=True)
 
     if USE_CUDA:
@@ -340,7 +346,7 @@ if __name__ == '__main__':
         dataset = remove_extra_columns(dataset, text_column, audio_path_column)
 
         vocab_string = vocab_to_string(vocab_dict, pad_token, silence_token, unk_token).lower()
-
+        print(vocab_string)
         print("\n\n> Remove invalid chars \n\n")
         # remove invalid chars
         dataset = dataset.map(remove_invalid_characters, num_proc=config['num_loader_workers'])

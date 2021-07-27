@@ -5,23 +5,76 @@ import json
 import torch
 import jiwer
 import numpy as np
+import jiwer.transforms as tr
 
-from datasets import load_metric
+class SentencesToListOfCharacters(tr.AbstractTransform):
+    def process_string(self, s):
+        return list(s)
 
-wer_metric = load_metric("wer")
+    def process_list(self, inp):
+        chars = []
+        for sentence in inp:
+            chars.extend(self.process_string(sentence))
+        
+        return chars
 
-def calculate_wer(pred_ids, labels,  processor, debug=False):
+cer_transform = tr.Compose(
+    [
+        jiwer.RemoveMultipleSpaces(),
+        jiwer.Strip(), 
+        SentencesToListOfCharacters(), # convert words to chars
+        jiwer.RemoveEmptyStrings()  # remove space strings
+    ]
+)
+
+# It's the jiwer default transform
+wer_transform = jiwer.Compose([
+    jiwer.RemoveMultipleSpaces(),
+    jiwer.Strip(),
+    jiwer.SentencesToListOfWords(),
+    jiwer.RemoveEmptyStrings()
+])
+
+def compute_cer(reference, hypothesis):
+    reference = reference.lower()
+    hypothesis = hypothesis.lower()
+    cer = jiwer.wer(reference, hypothesis, truth_transform=cer_transform, hypothesis_transform=cer_transform)
+    return cer
+
+def compute_wer(reference, hypothesis):
+    reference = reference.lower()
+    hypothesis = hypothesis.lower()
+    wer = jiwer.wer(reference, hypothesis, truth_transform=wer_transform, hypothesis_transform=wer_transform) 
+    return wer
+
+def replace_special_tokens_and_normalize(text, vocab_string, processor):
+    text = text.lower()
+    text = text.replace(processor.tokenizer.unk_token, " ")
+    text = text.replace(processor.tokenizer.pad_token, " ")
+    text = text.replace(processor.tokenizer.word_delimiter_token, " ")
+    text = re.sub("[^{}]".format(vocab_string+" "), " ", text)
+    text = re.sub("[ ]+", " ", text)
+    # remove doble blank spaces
+    text = " ".join(text.split())
+    return text
+
+def calculate_wer(pred_ids, labels, processor, vocab_string, debug=False):
     labels[labels == -100] = processor.tokenizer.pad_token_id
 
     pred_string = processor.batch_decode(pred_ids)
     label_string = processor.batch_decode(labels, group_tokens=False)
     # wer = wer_metric.compute(predictions=pred_string, references=label_string)
     wer = 0
+    cer = 0
     for i in range(len(pred_string)):
-        wer += jiwer.wer(label_string[i], pred_string[i])
+        reference = replace_special_tokens_and_normalize(label_string[i], vocab_string, processor)
+        hypothesis = replace_special_tokens_and_normalize(pred_string[i], vocab_string, processor)
+
+        wer += compute_wer(reference, hypothesis)
+        cer += compute_cer(reference, hypothesis)
     if debug:
         print(" > DEBUG: \n\n PRED:", pred_string, "\n Label:", label_string)
-    return wer/len(pred_string)
+    return wer, cer
 
 class AttrDict(dict):
     """A custom dict which converts dict keys

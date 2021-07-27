@@ -259,8 +259,9 @@ class KenLMDecoder(object):
 def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predictions=False):
     model.eval()
     predictions = []
-    steps = 0
+    tot_samples = 0
     tot_wer = 0
+    tot_cer = 0
     with torch.no_grad():
         for batch in tqdm(test_dataset):
             input_values, attention_mask = batch['input_values'], batch['attention_mask']
@@ -314,7 +315,9 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
 
             if calcule_wer:
                 # compute metrics 
-                tot_wer += calculate_wer(pred_ids, labels.cpu().detach().numpy(), processor)
+                wer, cer = calculate_wer(pred_ids, labels.cpu().detach().numpy(), processor)
+                tot_wer += wer
+                tot_cer += cer
 
             if return_predictions:
                 audios_path = batch['audio_path']
@@ -326,15 +329,16 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
                     if dataset_base_path:
                         output_wav_path = output_wav_path.replace(dataset_base_path, '').replace(dataset_base_path+'/', '')
 
-                    predictions.append([output_wav_path, pred_string[i]])
+                    predictions.append([output_wav_path, pred_string[i].lower()])
 
-            steps += 1
+            tot_samples += input_values.size(0)
     if calcule_wer: 
         # calculate avg of metrics
-        avg_wer = tot_wer/steps
-        
+        avg_wer = tot_wer/tot_samples
+        avg_cer = tot_cer/tot_samples
         print("\n\n --> TEST PERFORMANCE\n")
         print("     | > :   WER    ({:.5f})\n".format(avg_wer))
+        print("     | > :   CER    ({:.5f})\n".format(avg_cer))
 
     return predictions
 
