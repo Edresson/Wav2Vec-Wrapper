@@ -23,7 +23,7 @@ cer_transform = tr.Compose(
         jiwer.RemoveMultipleSpaces(),
         jiwer.Strip(), 
         SentencesToListOfCharacters(), # convert words to chars
-        jiwer.RemoveEmptyStrings()  # remove space strings
+        # jiwer.RemoveEmptyStrings()  # remove space strings
     ]
 )
 
