@@ -1,9 +1,9 @@
-FROM flml/flashlight:cuda-latest 
+FROM flml/flashlight:cuda-6954048
 
 RUN apt-get update
 
 # Install dependency
-RUN apt install -y ffmpeg sox libsox-fmt-mp3 psmisc
+RUN apt-get install -y ffmpeg sox libsox-fmt-mp3 psmisc
 
 
 
@@ -15,6 +15,6 @@ WORKDIR /root/flashlight/bindings/python
 RUN python3 setup.py install
 
 # hugging face
-RUN python3 -m pip install transformers datasets jiwer PyYAML librosa
+RUN python3 -m pip install librosa transformers==4.6.1 datasets==1.7.0 jiwer packaging  PyYAML tensorboard tensorboardX torch-audiomentations audiomentations
 
-WORKDIR /mnt/
+WORKDIR /workspace/

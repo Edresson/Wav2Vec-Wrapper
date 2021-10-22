@@ -1,8 +1,8 @@
 torch>=1.8.1
 torchaudio>=0.8.1
 librosa
-transformers
-datasets
+transformers==4.6.1
+datasets==1.7.0
 jiwer
 packaging
 PyYAML
