@@ -69,7 +69,9 @@ def calculate_wer(pred_ids, labels, processor, vocab_string, debug=False):
     for i in range(len(pred_string)):
         reference = replace_special_tokens_and_normalize(label_string[i], vocab_string, processor)
         hypothesis = replace_special_tokens_and_normalize(pred_string[i], vocab_string, processor)
-
+        if reference.replace(" ", "") == "":
+            print('Setence:"', label_string[i],'"ignored for the metrics calculate')
+            continue
         wer += compute_wer(reference, hypothesis)
         cer += compute_cer(reference, hypothesis)
     if debug:

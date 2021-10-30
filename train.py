@@ -30,6 +30,22 @@ transformers.logging.set_verbosity_info()
 
 wer_metric = load_metric("wer")
 
+def map_data_augmentation(aug_config):
+    aug_name = aug_config['name']
+    del aug_config['name']
+    if aug_name == 'additive': 
+        return AddBackgroundNoise(**aug_config)
+    elif aug_name == 'gaussian':
+        return AddGaussianNoise(**aug_config)
+    elif aug_name == 'rir':
+        return AddImpulseResponse(**aug_config)
+    elif aug_name == 'gain':
+        return Gain(**aug_config)
+    elif aug_name == 'pitch_shift':
+        PitchShift(**aug_config)
+    else:
+        raise ValueError("The data augmentation '" + aug_name + "' doesn't exist !!")
+
 def evaluation(pred):
     global processor
     pred_logits = pred.predictions
@@ -90,14 +106,7 @@ if __name__ == '__main__':
     if 'audio_augmentation' in config.keys(): 
         from audiomentations import Compose, Gain, AddGaussianNoise, PitchShift, AddBackgroundNoise, AddImpulseResponse
         # ToDo: Implement Time mask and Freq mask
-        audio_augmentator = Compose([
-                    AddBackgroundNoise(**config.audio_augmentation['additive']),
-                    AddGaussianNoise(**config.audio_augmentation['gaussian']),
-                    AddImpulseResponse(**config.audio_augmentation['rir']),
-                    Gain(**config.audio_augmentation['gain']),
-                    PitchShift(**config.audio_augmentation['pitch_shift']),
-            ]
-        )
+        audio_augmentator = Compose([map_data_augmentation(aug_config) for aug_config in config['audio_augmentation']])
     else:
         audio_augmentator = None
 

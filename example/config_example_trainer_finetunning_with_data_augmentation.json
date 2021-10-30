@@ -5,42 +5,64 @@
     // AUDIO PARAMS
     "sampling_rate": 16000,
 
-    // DATA AUGMENTATION 
+   
     // ToDo: Implement Time mask and Frequency Mask
-    "audio_augmentation":{
-        "gain":{
-            "min_gain_in_db": -18.0,
-            "max_gain_in_db": 6,
-            "p": 0.0 // propability of apply this method, 0 is disable
-        },
-        "pitch_shift":{
-            "min_semitones": -3,
-            "max_semitones": 3,
-            "p": 0.0 // propability of apply this method, 0 is disable
-        },
-        "gaussian":{
-            "min_amplitude": 0.0001,
-            "max_amplitude": 0.001,
-            "p": 0.5 // propability of apply this method, 0 is disable
-        },
+    "audio_augmentation":[
         // additive noise and room impulse response (RIR) simulation similar to: https://arxiv.org/pdf/2009.14153.pdf
-        "additive":{
-            "sounds_path":"../../datasets/musan/", // download: https://www.openslr.org/17/
+        {
+            "name": "additive",
+            "sounds_path":"../../datasets/musan/speech/", // download: https://www.openslr.org/17/
             "lru_cache_size": 32, // Maximum size of the LRU cache for storing noise files in memory
-            "min_snr_in_db": 5.0,
+            "min_snr_in_db": 13.0,
             "max_snr_in_db": 20.0,
             // "sample_rate": 16000,
-            "p": 0.5
+            "p": 0.25
+        },
+        {
+            "name": "additive",
+            "sounds_path":"../../datasets/musan/music/", // download: https://www.openslr.org/17/
+            "lru_cache_size": 32, // Maximum size of the LRU cache for storing noise files in memory
+            "min_snr_in_db": 5.0,
+            "max_snr_in_db": 15.0,
+            // "sample_rate": 16000,
+            "p": 0.25
+        },
+        {
+            "name": "additive",
+            "sounds_path":"../../datasets/musan/noise/", // download: https://www.openslr.org/17/
+            "lru_cache_size": 32, // Maximum size of the LRU cache for storing noise files in memory
+            "min_snr_in_db": 0.0,
+            "max_snr_in_db": 15.0,
+            // "sample_rate": 16000,
+            "p": 0.25
         },
         // rir filter proposed by: https://ieeexplore.ieee.org/document/7953152
-        "rir":{
+        {
+            "name": "rir",
             "ir_path": "../../datasets/RIRS_NOISES/simulated_rirs/", // download: https://www.openslr.org/28/
             "lru_cache_size": 128, // Maximum size of the LRU cache for storing noise files in memory
             // "sample_rate": 16000,
-            "p": 0.5
+            "p": 0.25
+        }, 
+        {
+            "name": "gain",
+            "min_gain_in_db": -18.0,
+            "max_gain_in_db": 6,
+            "p": 0.25 // propability of apply this method, 0 is disable
+        },
+        {
+            "name": "pitch_shift",
+            "min_semitones": -3,
+            "max_semitones": 3,
+            "p": 0.25 // propability of apply this method, 0 is disable
+        },
+        {
+            "name": "gaussian",
+            "min_amplitude": 0.0001,
+            "max_amplitude": 0.001,
+            "p": 0.25 // propability of apply this method, 0 is disable
         }
-        
-    },
+    ],
 
     // VOCABULARY PARAMETERS
     "vocab":{
