@@ -44,7 +44,7 @@ from transformers import Wav2Vec2ForCTC
 
 from utils.generic_utils import load_config, load_vocab, calculate_wer
 
-from utils.dataset import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor
+from utils.dataset_preprocessed import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor
 from torch.utils.data import DataLoader
 
 
@@ -56,16 +56,29 @@ def remove_invalid_characters(batch):
     batch[text_column] = text + " "
     return batch
 
-def prepare_dataset(batch):
+def load_audio(batch):
     if dataset_base_path:
         batch[audio_path_column] = os.path.join(dataset_base_path, batch[audio_path_column])
-
-    batch['audio_path'] = batch[audio_path_column]
-    batch["input_values"] = batch[audio_path_column]
+    speech_array, sampling_rate = torchaudio.load(batch[audio_path_column])
+    batch["speech"] = speech_array.squeeze().numpy()
+    batch["sampling_rate"] = sampling_rate
     if text_column in batch:
-        with processor.as_target_processor():
-            batch["labels"] = processor(batch[text_column]).input_ids
+        batch["target_text"] = batch[text_column]
+    return batch
 
+def resample_audio(batch):
+    if batch["sampling_rate"] != config['sampling_rate']:
+        batch["speech"] = librosa.resample(np.asarray(batch["speech"]),  batch["sampling_rate"], config['sampling_rate'])
+        batch["sampling_rate"] = config['sampling_rate']
+    return batch
+
+def prepare_dataset(batch):
+    batch['audio_path'] = batch[audio_path_column]
+    batch["input_values"] = processor(batch["speech"], sampling_rate=config['sampling_rate']).input_values
+
+    if "target_text" in batch:
+        with processor.as_target_processor():
+            batch["labels"] = processor(batch["target_text"]).input_ids
     return batch
 
 class KenLMDecoder(object):
@@ -297,7 +310,7 @@ if __name__ == '__main__':
     unk_token = processor.tokenizer.unk_token
 
    
-    data_collator = DataColletor(processor=processor, sampling_rate=config.sampling_rate, padding=True, test=True)
+    data_collator = DataColletor(processor=processor, padding=True, test=True)
 
     if USE_CUDA:
         model = model.cuda()
@@ -342,9 +355,16 @@ if __name__ == '__main__':
         print("\n\n> Remove invalid chars \n\n")
         # remove invalid chars
         dataset = dataset.map(remove_invalid_characters, num_proc=config['num_loader_workers'])
+
+        # Load audio files
+        dataset = dataset.map(load_audio)
+        print("\n\n> Resample Audio Files \n\n")
+        # resample audio files if necessary
+        dataset = dataset.map(resample_audio, num_proc=config['num_loader_workers'])
+
         print("\n\n> Prepare dataset \n\n")
         # batched dataset
-        dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, num_proc=config['num_loader_workers'], batched=False)
+        dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, batch_size=config['batch_size'], num_proc=1, batched=True)
 
         test_dataset = DataLoader(dataset=dataset,
                     batch_size=config['batch_size'],

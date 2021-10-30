@@ -1,9 +1,13 @@
+import os
 import re
 import sys
 import argparse
 import pandas as pd
 from tqdm import tqdm
 
+# add previous and current path
+sys.path.append('../')
+sys.path.append('./')
 
 from utils.generic_utils import compute_wer, compute_cer
 
@@ -42,14 +46,32 @@ def main():
         df_transcriptions = dataset.rename_column(args.text_trans_column, 'transcription')
         args.text_trans_column = 'transcription'
 
+    # remove common voice extra path
+    for index, line in df_transcriptions.iterrows():
+        if 'common_voice_' in line[args.audio_path_column]:
+            line[args.audio_path_column] = os.path.basename(line[args.audio_path_column])
+    for index, line in df_dataset.iterrows():
+        if 'common_voice_' in line[args.audio_path_column]:
+            line[args.audio_path_column] = os.path.basename(line[args.audio_path_column])
+
+    # dropout all duplicates
+    df_dataset.drop_duplicates(args.audio_path_column, inplace = True)
+    df_transcriptions.drop_duplicates(args.audio_path_column, inplace = True)
+
+    # print audios without transcription
+    print("Transcript Num. Instances:", len(df_transcriptions.values.tolist()), "Dataset Num. Instances", len(df_dataset.values.tolist()))
+    print("Audios with missing transcription:")
+    print((set(df_dataset[args.audio_path_column].values.tolist()) - set(df_transcriptions[args.audio_path_column].values.tolist())))
+
     df = pd.merge(df_dataset, df_transcriptions, on=args.audio_path_column)
     
-    wers = {"ALIP":0, "TED":0, "NURC_RE":0, "CORAL":0, "SP2010":0}
-    cers = {"ALIP":0, "TED":0, "NURC_RE":0, "CORAL":0, "SP2010":0}
-    instances = {"ALIP":0, "TED":0, "NURC_RE":0, "CORAL":0, "SP2010":0}
+    wers = {"ALIP":0, "TED":0, "NURC_RE":0, "CORAL":0, "SP2010":0, "CV": 0, "CORAA_ALL": 0, "Spontaneous_Speech": 0, "Prepared_Speech": 0, "ONLY_NURC_RE_EF": 0, "NURC_RE_without_EF": 0, "Prepared_Speech_without_CV":0}
+    cers = {"ALIP":0, "TED":0, "NURC_RE":0, "CORAL":0, "SP2010":0, "CV": 0, "CORAA_ALL": 0, "Spontaneous_Speech": 0, "Prepared_Speech": 0, "ONLY_NURC_RE_EF": 0, "NURC_RE_without_EF": 0, "Prepared_Speech_without_CV":0}
+    instances = {"ALIP":0, "TED":0, "NURC_RE":0, "CORAL":0, "SP2010":0, "CV": 0, "CORAA_ALL": 0, "Spontaneous_Speech": 0, "Prepared_Speech": 0, "ONLY_NURC_RE_EF": 0, "NURC_RE_without_EF": 0, "Prepared_Speech_without_CV":0}
 
     tot_wer = 0
     tot_cer = 0
+
     outputs = []
     tot_instances = 0
     for index, line in tqdm(df.iterrows()):
@@ -68,26 +90,71 @@ def main():
         tot_wer += wer
         tot_instances += 1
         outputs.append([line[args.audio_path_column], text, pred_text, cer, wer])
-        if '_alip_' in line['file_path'].lower():
+
+        line['file_path'] = line['file_path'].lower()
+
+        if '_alip_' in line['file_path']:
             cers["ALIP"] += cer
             wers["ALIP"] += wer
             instances["ALIP"] += 1
-        elif 'ted_' in line['file_path'].lower():
+        elif 'ted_' in line['file_path']:
             cers["TED"] += cer
             wers["TED"] += wer
             instances["TED"] += 1
-        elif 'nurc_re' in line['file_path'].lower():
+        elif 'nurc_re' in line['file_path']:
             cers["NURC_RE"] += cer
             wers["NURC_RE"] += wer
             instances["NURC_RE"] += 1
-        elif '_co_' in line['file_path'].lower():
+        elif '_co_' in line['file_path']:
             cers["CORAL"] += cer
             wers["CORAL"] += wer
             instances["CORAL"] += 1
-        elif '_sp_' in line['file_path'].lower():
+        elif '_sp_' in line['file_path']:
             cers["SP2010"] += cer
             wers["SP2010"] += wer
             instances["SP2010"] += 1
+        elif 'common_voice_' in line['file_path']:
+            cers["CV"] += cer
+            wers["CV"] += wer
+            instances["CV"] += 1
+
+        # Metrics in all CORAA dataset 
+        if '_alip_' in line['file_path'] or 'ted_' in line['file_path'] or 'nurc_re' in line['file_path'] or  '_co_' in line['file_path'] or '_sp_' in line['file_path']:
+            cers["CORAA_ALL"] += cer
+            wers["CORAA_ALL"] += wer
+            instances["CORAA_ALL"] += 1
+        
+        # Metrics in all Spontaneous Speech Datasets ( all except TED, NURC_ RE EF (Elocução Formal) and CV)
+        if '_alip_' in line['file_path'] or 'nurc_re' in line['file_path'] or  '_co_' in line['file_path'] or '_sp_' in line['file_path']:
+            # ignore nurc_re_ef
+            if not 'nurc_re_ef' in line['file_path']:
+                cers["Spontaneous_Speech"] += cer
+                wers["Spontaneous_Speech"] += wer
+                instances["Spontaneous_Speech"] += 1
+        # Metrics for all prepared Speech datasets
+        if 'ted_' in line['file_path'] or 'nurc_re_ef' in line['file_path'] or 'common_voice_' in line['file_path']:
+            cers["Prepared_Speech"] += cer
+            wers["Prepared_Speech"] += wer
+            instances["Prepared_Speech"] += 1
+       
+        # Metrics for all prepared Speech datasets
+        if 'ted_' in line['file_path'] or 'nurc_re_ef' in line['file_path']:
+            cers["Prepared_Speech_without_CV"] += cer
+            wers["Prepared_Speech_without_CV"] += wer
+            instances["Prepared_Speech_without_CV"] += 1
+
+        # NURC-RE without EF and only EF
+        if 'nurc_re' in line['file_path']:
+            if not 'nurc_re_ef' in line['file_path']:
+                cers["NURC_RE_without_EF"] += cer
+                wers["NURC_RE_without_EF"] += wer
+                instances["NURC_RE_without_EF"] += 1
+            else: # only NURC-RE EF
+                cers["ONLY_NURC_RE_EF"] += cer
+                wers["ONLY_NURC_RE_EF"] += wer
+                instances["ONLY_NURC_RE_EF"] += 1
+
+
     # print results
     for key in wers.keys():
         if instances[key]:
