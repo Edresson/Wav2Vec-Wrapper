@@ -15,6 +15,6 @@ WORKDIR /root/flashlight/bindings/python
 RUN python3 setup.py install
 
 # hugging face
-RUN python3 -m pip install librosa transformers==4.6.1 datasets==1.7.0 jiwer packaging  PyYAML tensorboard tensorboardX torch-audiomentations audiomentations
+RUN python3 -m pip install librosa transformers==4.6.1 datasets==1.7.0 jiwer packaging  PyYAML tensorboard tensorboardX torch-audiomentations audiomentations pydub
 
 WORKDIR /workspace/

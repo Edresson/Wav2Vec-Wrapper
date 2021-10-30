@@ -10,3 +10,4 @@ tensorboard
 tensorboardX
 torch-audiomentations
 audiomentations
+pydub
