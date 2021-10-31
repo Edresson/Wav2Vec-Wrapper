@@ -42,7 +42,7 @@ def map_data_augmentation(aug_config):
     elif aug_name == 'gain':
         return Gain(**aug_config)
     elif aug_name == 'pitch_shift':
-        PitchShift(**aug_config)
+        return PitchShift(**aug_config)
     else:
         raise ValueError("The data augmentation '" + aug_name + "' doesn't exist !!")
 

@@ -6,8 +6,9 @@ import pandas as pd
 from tqdm import tqdm
 
 # add previous and current path
-sys.path.append('../')
 sys.path.append('./')
+sys.path.append('../')
+sys.path.append('../../')
 
 from utils.generic_utils import compute_wer, compute_cer
 
