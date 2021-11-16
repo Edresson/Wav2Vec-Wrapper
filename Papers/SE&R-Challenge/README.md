@@ -1,11 +1,14 @@
 # SE&R Challenge
 
 ## Download CORAA dataset
-### AUDIOS
+Create the Directory for downloading the dataset:
 ```
     mkdir -p ../datasets/CORAA_Dataset/
     cd ../datasets/CORAA_Dataset/
 ```
+
+### Download the Audios
+
 #### Train 
     ```gdown --id 1deCciFD35EA_OEUl0MrEDa7u5O2KgVJM -O train.zip
     unzip train.zip
@@ -15,7 +18,7 @@
     gdown --id 1bIHctanQjW2ITOM5wNQSt_NjB45s0_Q_ -O dev.zip
     unzip dev.zip
     ```
-### TRANSCRIPTIONS
+### Transcriptions
 #### Train 
     ```
     gdown --id 1HbwahfMWoArYj0z2PfI4dHiambWfaNWg -O metadata_train.csv
