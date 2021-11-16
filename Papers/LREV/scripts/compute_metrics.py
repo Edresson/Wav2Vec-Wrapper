@@ -9,6 +9,7 @@ from tqdm import tqdm
 sys.path.append('./')
 sys.path.append('../')
 sys.path.append('../../')
+sys.path.append('../../../')
 
 from utils.generic_utils import compute_wer, compute_cer
 
