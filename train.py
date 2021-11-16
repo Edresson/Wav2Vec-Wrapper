@@ -55,6 +55,15 @@ def evaluation(pred):
     pred_str = processor.batch_decode(pred_ids)
     # we do not want to group tokens when computing the metrics
     label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
+    # remove empty strings
+    while "" in label_str or " " in label_str:
+        if "" in label_str:
+            idx = label_str.index("")
+            del label_str[idx], pred_str[idx]
+
+        if " " in label_str:
+            idx = label_str.index(" ")
+            del label_str[idx], pred_str[idx]
 
     wer = wer_metric.compute(predictions=pred_str, references=label_str)
     # print("PRED:", pred_str, "Label:", label_str)

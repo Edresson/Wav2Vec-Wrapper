@@ -44,7 +44,7 @@ from transformers import Wav2Vec2ForCTC
 
 from utils.generic_utils import load_config, load_vocab, calculate_wer
 
-from utils.dataset import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor
+from utils.dataset import remove_extra_columns, parse_dataset_dict, vocab_to_string, DataColletor, DataColletorTest
 from torch.utils.data import DataLoader
 
 
@@ -229,15 +229,12 @@ def test(model, test_dataset, processor, kenlm, calcule_wer=True, return_predict
 
     return predictions
 
-def inference(model, wavs, processor, kenlm):
+def inference(model, test_dataset, processor, kenlm, config):
     model.eval()
     predictions = []
     with torch.no_grad():
-        for wav in tqdm(wavs):
-            wav, path = wav
-            features = processor(wav.numpy(), sampling_rate=16_000, padding=True, return_tensors="pt")
-            input_values = features.input_values
-            attention_mask = features.attention_mask
+        for batch in tqdm(test_dataset):
+            input_values, attention_mask = batch['input_values'], batch['attention_mask']
 
             if USE_CUDA:
                 input_values = input_values.cuda(non_blocking=True)
@@ -262,17 +259,20 @@ def inference(model, wavs, processor, kenlm):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # CUDA_VISIBLE_DEVICES=5 python3 test.py  --config_path ../configs/CORAA/config_eval_all_CORAA.json   --checkpoint_path_or_name ../checkpoints/Wav2Vec/CORAA/final-version/train-unfreeze-feature-extractor-30-epochs/ --output_csv ../CORAA_ALL/our-freezed/ --no_kenlm
-    parser.add_argument('-c', '--config_path', type=str, required=True,
-                        help="json file with configurations")
+    # 
     parser.add_argument('--checkpoint_path_or_name', type=str, required=True,
                         help="path or name of checkpoints")
+    parser.add_argument('-c', '--config_path', type=str, required=True, default=None,
+                        help="json file with configurations")
     parser.add_argument('--no_kenlm', default=False, action='store_true',
                         help="Not use KenLm during inference ?")
     parser.add_argument('--audio_path', type=str, default=None,
                         help="If it's passed the inference will be done in all audio files in this path and the dataset present in the config json will be ignored")
     parser.add_argument('--output_csv', type=str, default=None,
                         help="CSV for save all predictions")
+    parser.add_argument('--batch_size', type=int, default=1,
+                        help="Batch size")
+                        
 
     args = parser.parse_args()
 
@@ -282,9 +282,11 @@ if __name__ == '__main__':
     USE_CUDA = torch.cuda.is_available()
 
     model = Wav2Vec2ForCTC.from_pretrained(args.checkpoint_path_or_name)
+    print("> Model Loaded")
 
     feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=config['sampling_rate'], padding_value=0.0, do_normalize=True, return_attention_mask=True)
     processor = Wav2Vec2Processor.from_pretrained(args.checkpoint_path_or_name)
+
     vocab_dict = processor.tokenizer.get_vocab()
      # if the model uses upper words in vocab force tokenizer lower case for compatibility with our data loader
     for c in list(vocab_dict.keys()):
@@ -296,9 +298,6 @@ if __name__ == '__main__':
     silence_token = processor.tokenizer.word_delimiter_token
     unk_token = processor.tokenizer.unk_token
 
-   
-    data_collator = DataColletor(processor=processor, sampling_rate=config.sampling_rate, padding=True, test=True)
-
     if USE_CUDA:
         model = model.cuda()
 
@@ -309,7 +308,10 @@ if __name__ == '__main__':
         print("> Inference without KenLM")
         kenlm = None
 
+    dataset_base_path = None
     if not args.audio_path:
+        data_collator = DataColletor(processor=processor, sampling_rate=config.sampling_rate, padding=True, test=True)
+
         # load dataset
         test_dataset_config = config.datasets['test']
         text_column, audio_path_column = parse_dataset_dict(test_dataset_config)
@@ -330,9 +332,6 @@ if __name__ == '__main__':
                 dataset_base_path = config.datasets['files_path']
             else:
                 print("> Warning: datasets['files_path'] igonored because dataset is not CSV !")
-                dataset_base_path = None
-        else:
-            dataset_base_path = None
 
         # preprocess dataset
         dataset = remove_extra_columns(dataset, text_column, audio_path_column)
@@ -347,7 +346,7 @@ if __name__ == '__main__':
         dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, num_proc=config['num_loader_workers'], batched=False)
 
         test_dataset = DataLoader(dataset=dataset,
-                    batch_size=config['batch_size'],
+                    batch_size=args.batch_size,
                     collate_fn=data_collator,
                     shuffle=True, 
                     num_workers=config['num_loader_workers'])
@@ -356,19 +355,24 @@ if __name__ == '__main__':
         preds = test(model, test_dataset, processor, kenlm,  calcule_wer=True, return_predictions=True)
 
     else:
+        # use the datacolletor with only audio
+        data_collator = DataColletorTest(processor=processor, sampling_rate=config.sampling_rate, padding=True)
+
         # load dataset
-        wavs = glob(os.path.join(args.audio_path,'*.wav'))
+        print("\n\n> Searching Audios \n\n")
+        wavs = glob(os.path.join(args.audio_path,'**/*.wav'), recursive=True)
 
-        vocab_string = vocab_to_string(vocab_dict, pad_token, silence_token, unk_token).lower()
-
-        print("\n\n> Load and Resample Audio Files\n\n")
-        # Load audio files
-        wavs = [(torch.tensor(librosa.load(path, config['sampling_rate'])[0]), path) for path in wavs]
+        test_dataset = DataLoader(dataset=wavs,
+            batch_size=args.batch_size,
+            collate_fn=data_collator,
+            shuffle=True, 
+            num_workers=config['num_loader_workers'])
 
         print("\n\n> Starting Evaluation \n\n")
-        preds = inference(model, wavs, processor, kenlm)
+        preds = test(model, test_dataset, processor, kenlm,  calcule_wer=False, return_predictions=True)
         
     df = pd.DataFrame(preds, columns=["file_path", "transcription"])
+
     if args.output_csv:
         root_path = os.path.dirname(args.output_csv)
         os.makedirs(root_path, exist_ok=True)

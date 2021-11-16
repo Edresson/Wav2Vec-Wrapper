@@ -1,0 +1,94 @@
+{
+    "run_name": "Wav2Vec-fine-tuning-CORAA",
+    "run_description": "Fine tuning CORAA",
+    "seed": 42,
+    // AUDIO PARAMS
+    "sampling_rate": 16000,
+
+    // VOCABULARY PARAMETERS
+    "vocab":{
+        "vocab_path": "example/vocab_example.json", // generic vocab for Portuguese
+        "blank": "<pad>", // blank token for padding
+        "silence": "|", // token between words
+        "unk": "<unk>" // unk token
+    },
+
+    // TRAINING
+    "batch_size": 8,       // Batch size for training.
+    "mixed_precision": true,     // level of optimization with NVIDIA's apex feature for automatic mixed FP16/FP32 precision (AMP), NOTE: currently only O1 is supported, and use "O1" to activate.
+    "early_stop_epochs": 10, // If 0 disabled else Number of epochs for stop training with validation loss dont decrease 
+    "preprocess_dataset": false, // if true, the dataset will be pre-processed and saved in disk, otherwise the audio files will be loaded in each step. Preprocessing makes training faster, but requires much more disk space.
+
+    // OPTIMIZER
+    "epochs": 40,                // total number of epochs to train.
+    "lr": 0.00003,                  // Initial learning rate.
+    "gradient_accumulation_steps": 24, 
+
+    // LOGGING
+    "logging_steps": 100,    // Number of steps to plot.
+    "load_best_model_at_end": true,
+    "save_total_limit": 3,
+    "warmup_ratio": 0.05, // 0 disable Ratio of total training steps used for a linear warmup from 0 to learning_rate
+    "warmup_steps": 0, // 0 disable  Number of steps used for a linear warmup from 0 to learning_rate
+
+    // DATA LOADING
+    "num_loader_workers": 8,        // number of training data loader processes. Don't set it too big. 4-8 are goo
+    
+    // MODEL
+    "freeze_feature_extractor": true, // Whether to freeze the feature extractor layers of the model.
+    "attention_dropout": 0.1, // The dropout ratio for the attention probabilities.
+    "activation_dropout": 0.1, // The dropout ratio for activations inside the fully connected layer.
+    "hidden_dropout": 0.1, // The dropout probabilitiy for all fully connected layers in the embeddings, encoder, and pooler.
+    "feat_proj_dropout": 0.1, // The dropout probabilitiy for all 1D convolutional layers in feature extractor.
+    "mask_time_prob": 0.05, //  Propability of each feature vector along the time axis to be chosen as the start of the vector span to be masked.
+    "layerdrop": 0.0,  // The LayerDrop probability. 
+    "gradient_checkpointing": true,  // If True, use gradient checkpointing to save memory at the expense of slower backward pass.
+
+
+    // PATHS
+    "output_path": "../checkpoints/Wav2Vec/CORAA-new/final-version/train/",
+    // CACHE
+    "dataset_cache": "../datasets/",
+
+    // DATASETS
+    "datasets":{
+        "files_path": "../datasets/CORAA_Dataset/", // relative path for audios It's will be join with the audio path CSV
+        "train":
+            [
+               // this dicts is pass directly for the load dataset see the documentation: https://huggingface.co/docs/datasets/package_reference/loading_methods.html#datasets.load_dataset 
+            {
+                "name": "csv",
+                "path": "csv",
+                "data_files": ["../datasets/CORAA_Dataset/metadata_train_final.csv"], // csv files
+                "text_column": "text",
+                "path_column": "file_path"
+            }
+            ]
+        ,
+        "devel":
+            [ 
+                {
+                    "name": "csv",
+                    "path": "csv",
+                    "data_files": ["../datasets/CORAA_Dataset/metadata_dev_final.csv"], // csv files
+                    "text_column": "text",
+                    "path_column": "file_path"
+                }
+        
+            ]
+    }//,
+    // used only for test 
+    // "KenLM":{
+    // "kenlm_model_path": "../../kenLM/binaries/subtitle/4-gram/lm.binary", // Path for KenLM model
+    // "lexicon_path": "example/lexicon.lst", // file with all words for limit the decoder search
+    // "beam": 2048, 
+    // "nbest": 1,
+    // "beam_threshold": 25, 
+    // "lm_weight": 1, 
+    // "word_score": -1,
+    // "sil_weight": 0
+    // }
+
+
+}
+
