@@ -1,26 +1,26 @@
 # SE&R Challenge
 
-# Download CORAA dataset
-## AUDIOS
+## Download CORAA dataset
+### AUDIOS
 ```
     mkdir -p ../datasets/CORAA_Dataset/
     cd ../datasets/CORAA_Dataset/
 ```
-### Train 
+#### Train 
     ```gdown --id 1deCciFD35EA_OEUl0MrEDa7u5O2KgVJM -O train.zip
     unzip train.zip
     ```
-### Dev 
+#### Development 
     ```
     gdown --id 1bIHctanQjW2ITOM5wNQSt_NjB45s0_Q_ -O dev.zip
     unzip dev.zip
     ```
-## TRANSCRIPTIONS
-### Train 
+### TRANSCRIPTIONS
+#### Train 
     ```
     gdown --id 1HbwahfMWoArYj0z2PfI4dHiambWfaNWg -O metadata_train.csv
     ```
-### Dev 
+#### Development 
     ```
     gdown --id 185erjax7lS_YNuolZvcMt_EdprafyMU0 -O metadata_dev.csv
     ```
