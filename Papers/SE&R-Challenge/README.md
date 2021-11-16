@@ -1,5 +1,30 @@
 # SE&R Challenge
 
+# Download CORAA dataset
+## AUDIOS
+```
+    mkdir -p ../datasets/CORAA_Dataset/
+    cd ../datasets/CORAA_Dataset/
+```
+### Train 
+    ```gdown --id 1deCciFD35EA_OEUl0MrEDa7u5O2KgVJM -O train.zip
+    unzip train.zip
+    ```
+### Dev 
+    ```
+    gdown --id 1bIHctanQjW2ITOM5wNQSt_NjB45s0_Q_ -O dev.zip
+    unzip dev.zip
+    ```
+## TRANSCRIPTIONS
+### Train 
+    ```
+    gdown --id 1HbwahfMWoArYj0z2PfI4dHiambWfaNWg -O metadata_train.csv
+    ```
+### Dev 
+    ```
+    gdown --id 185erjax7lS_YNuolZvcMt_EdprafyMU0 -O metadata_dev.csv
+    ```
+
 ## Train the model using Transfer Learning from the baseline
  To perform a fine tuning using the baseline checkpoint, you must first adjust the configuration file paths. We provide an example configuration file at: "Papers/SE&R-Challenge/configs/config_coraa.json".
   Change the "output_path" to the path where you want the model to save the checkpoints during training and change the dataset paths. After just run the command:
