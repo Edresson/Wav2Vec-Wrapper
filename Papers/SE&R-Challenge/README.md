@@ -13,6 +13,7 @@ For more details about the Challenge please check the Challenge [Website](https:
 For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you need to create the directory:
 
     mkdir -p ../datasets/CORAA_Dataset/
+
     cd ../datasets/CORAA_Dataset/
 
 
