@@ -38,7 +38,7 @@ For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you
 #### Development 
     
     gdown --id 185erjax7lS_YNuolZvcMt_EdprafyMU0 -O metadata_dev.csv
-    
+    cd ../../Wav2Vec-Wrapper
 
 ## Train your own model using Transfer Learning of baseline
  To perform a fine tuning using the baseline checkpoint, you must first adjust the configuration file paths. We provide an example configuration file at: "Papers/SE&R-Challenge/configs/config_coraa.json".
