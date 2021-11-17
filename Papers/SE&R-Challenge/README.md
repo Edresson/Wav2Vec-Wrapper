@@ -70,5 +70,6 @@ You can still evaluate your model in the development subset the same way it is d
 
 
 
-    python3 compute_metrics.py --dataset_csv ../datasets/CORAA_Dataset/metadata_dev_final.csv \
+    python3 compute_metrics.py \
+      --dataset_csv ../datasets/CORAA_Dataset/metadata_dev_final.csv \
       --transcription_csv ../results/coraa_dev_pred_transcriptions.csv
