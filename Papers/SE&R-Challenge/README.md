@@ -31,7 +31,7 @@ Create the Directory for downloading the dataset:
     gdown --id 185erjax7lS_YNuolZvcMt_EdprafyMU0 -O metadata_dev.csv
     
 
-## Train the model using Transfer Learning from the baseline
+## Train your own model using Transfer Learning of baseline
  To perform a fine tuning using the baseline checkpoint, you must first adjust the configuration file paths. We provide an example configuration file at: "Papers/SE&R-Challenge/configs/config_coraa.json".
   Change the "output_path" to the path where you want the model to save the checkpoints during training and change the dataset paths. After just run the command:
 
