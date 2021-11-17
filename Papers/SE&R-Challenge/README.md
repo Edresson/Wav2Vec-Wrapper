@@ -1,7 +1,11 @@
 # SE&R Challenge
 
-## Download CORAA dataset
-Create the Directory for downloading the dataset:
+
+For more details about the Challenge please check the Challenge [Website](https://sites.google.com/view/ser2022).
+
+
+## Download dataset
+For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you need to create the directory:
 
     mkdir -p ../datasets/CORAA_Dataset/
     cd ../datasets/CORAA_Dataset/
