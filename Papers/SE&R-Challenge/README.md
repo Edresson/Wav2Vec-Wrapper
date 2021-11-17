@@ -7,6 +7,7 @@ For more details about the Challenge please check the Challenge [Website](https:
 ## Clone the Repository:
    
     git clone https://github.com/Edresson/Wav2Vec-Wrapper
+    cd Wav2Vec-Wrapper
    
 ## Download dataset
 For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you need to create the directory:
