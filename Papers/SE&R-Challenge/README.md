@@ -13,7 +13,6 @@ For more details about the Challenge please check the Challenge [Website](https:
 For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you need to create the directory:
 
     mkdir -p ../datasets/CORAA_Dataset/
-
     cd ../datasets/CORAA_Dataset/
 
 
@@ -39,6 +38,7 @@ For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you
 #### Development 
     
     gdown --id 185erjax7lS_YNuolZvcMt_EdprafyMU0 -O metadata_dev.csv
+
     cd ../../Wav2Vec-Wrapper
 
 ## Train your own model using Transfer Learning of baseline
