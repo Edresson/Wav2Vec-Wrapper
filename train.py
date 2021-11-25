@@ -154,6 +154,7 @@ if __name__ == '__main__':
     group_by_length=True,
     logging_first_step=True,
     per_device_train_batch_size=config['batch_size'],
+    per_device_eval_batch_size=config['batch_size'],
     dataloader_num_workers=config['num_loader_workers'],
     gradient_accumulation_steps=config['gradient_accumulation_steps'],
     seed=config.seed,

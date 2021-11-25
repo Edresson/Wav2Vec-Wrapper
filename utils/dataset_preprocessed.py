@@ -71,10 +71,10 @@ class Dataset(object):
 
     def initialize_datasets(self):
         for dataset_dict in self.config.datasets['train']:
-            self.train_dataset = self.make_dataset(dataset_dict)
+            self.train_dataset = self.make_dataset(dataset_dict, self.train_dataset)
 
         for dataset_dict in self.config.datasets['devel']:
-            self.devel_dataset = self.make_dataset(dataset_dict)
+            self.devel_dataset = self.make_dataset(dataset_dict, self.devel_dataset)
 
     def remove_extra_and_rename_columns(self, dataset, text_column, audio_path_column):
         if 'train' in dataset.keys():
@@ -92,9 +92,7 @@ class Dataset(object):
             dataset = dataset.rename_column(audio_path_column, self.audio_path_column)
         return dataset
 
-    def make_dataset(self, dataset_dict):
-
-        own_dataset = None
+    def make_dataset(self, dataset_dict, own_dataset=None):
         text_column, audio_path_column = parse_dataset_dict(dataset_dict)
         if 'dataset_cache' in self.config and self.config.dataset_cache:
             dataset_dict['cache_dir'] = self.config.dataset_cache
@@ -106,7 +104,7 @@ class Dataset(object):
         if own_dataset is None:
             own_dataset = dataset
         else:
-            own_dataset = concatenate_datasets([self.train_dataset, dataset])
+            own_dataset = concatenate_datasets([own_dataset, dataset])
         return own_dataset    
         
     def normalise_texts(self):

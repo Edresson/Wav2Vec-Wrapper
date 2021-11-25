@@ -104,7 +104,7 @@ class Dataset(object):
         if own_dataset is None:
             own_dataset = dataset
         else:
-            own_dataset = concatenate_datasets([self.train_dataset, dataset])
+            own_dataset = concatenate_datasets([own_dataset, dataset])
         return own_dataset    
         
     def normalise_texts(self):
