@@ -27,7 +27,7 @@ For downloading the [CORAA dataset](https://github.com/nilc-nlp/CORAA) first you
     
 #### Development 
     
-    gdown --id 1bIHctanQjW2ITOM5wNQSt_NjB45s0_Q_ -O dev.zip
+    gdown --id 1D1ft4F37zLjmGxQyhfkdjSs9cJzOL3nI -O dev.zip
     unzip dev.zip
     
 ### Transcriptions
