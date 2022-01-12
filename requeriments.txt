@@ -3,7 +3,7 @@ torchaudio>=0.8.1
 librosa
 transformers==4.6.1
 datasets==1.7.0
-jiwer
+jiwer==2.2.0
 packaging
 PyYAML
 tensorboard
