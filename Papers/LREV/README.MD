@@ -1,4 +1,3 @@
-# Reproducibility 
 
 # Download CORAA dataset
 ## AUDIOS
@@ -16,6 +15,10 @@
 ### Dev
     gdown --id 185erjax7lS_YNuolZvcMt_EdprafyMU0 -O metadata_dev.csv
 
+
+# Checkpoints
+
+The checkpoint was made available on Hugging Face, to see how to use it, access the following repository: https://huggingface.co/Edresson/wav2vec2-large-xlsr-coraa-portuguese
 
 
 
