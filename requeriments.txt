@@ -9,5 +9,5 @@ PyYAML
 tensorboard
 tensorboardX
 torch-audiomentations
-audiomentations
+audiomentations==0.16.0
 pydub
