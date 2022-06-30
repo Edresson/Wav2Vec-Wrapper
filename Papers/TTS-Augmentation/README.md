@@ -8,7 +8,7 @@
 
 
 # Datasets
-All dataset including generated is available at [Google drive](https://drive.google.com/drive/folders/1jRQI0fKuLDGMa5zfl_4VuPCmW3037y-Y?usp=sharing).
+All datasets used in this work, including generated ones, are available at [Google drive](https://drive.google.com/drive/folders/1jRQI0fKuLDGMa5zfl_4VuPCmW3037y-Y?usp=sharing).
 
 # Run example
 ```
